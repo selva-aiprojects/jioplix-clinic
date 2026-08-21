@@ -1,0 +1,228 @@
+@import "tailwindcss";
+
+/* ============================================================
+   JIOPLIX CLINIC OS — Design System v1.0
+   Single source of truth. Brand palette lives in the Tailwind
+   @theme tokens below, so every component inherits the brand.
+   ============================================================ */
+
+@theme {
+  /* ----------------------------------------------------------
+     BRAND — Jioplix Blue (primary actions, links, focus)
+     ---------------------------------------------------------- */
+  --color-primary-50: #eef5ff;
+  --color-primary-100: #d8e7ff;
+  --color-primary-200: #b3d0ff;
+  --color-primary-300: #84b1fb;
+  --color-primary-400: #4d8bf2;
+  --color-primary-500: #1265e8;
+  --color-primary-600: #0f54c6;
+  --color-primary-700: #0c44a3;
+  --color-primary-800: #0d3a82;
+  --color-primary-900: #103468;
+
+  /* ----------------------------------------------------------
+     BRAND — Jioplix Teal (accent, secondary highlights)
+     ---------------------------------------------------------- */
+  --color-accent-50: #eafbf8;
+  --color-accent-100: #cdf5ee;
+  --color-accent-200: #9feade;
+  --color-accent-300: #66dbca;
+  --color-accent-400: #35ccb7;
+  --color-accent-500: #08bfa9;
+  --color-accent-600: #05a190;
+  --color-accent-700: #088075;
+  --color-accent-800: #0a675e;
+  --color-accent-900: #0c554e;
+
+  /* ----------------------------------------------------------
+     STATUS
+     ---------------------------------------------------------- */
+  --color-success-50: #eaf8f1;
+  --color-success-100: #d1f0e0;
+  --color-success-500: #16a36a;
+  --color-success-600: #108a58;
+  --color-success-700: #0c6b45;
+
+  --color-warning-50: #fff7e6;
+  --color-warning-100: #fdeec8;
+  --color-warning-500: #f59e0b;
+  --color-warning-600: #d97706;
+  --color-warning-700: #b45309;
+
+  --color-danger-50: #fff0f0;
+  --color-danger-100: #ffdcdd;
+  --color-danger-500: #e5484d;
+  --color-danger-600: #cf363b;
+  --color-danger-700: #ab2c31;
+
+  --color-info-50: #edf6ff;
+  --color-info-100: #d3eaff;
+  --color-info-500: #1688f8;
+  --color-info-600: #0f6fd0;
+  --color-info-700: #0c5aa8;
+
+  /* ----------------------------------------------------------
+     SURFACE / TEXT — slate ramp tuned to brand navy ink
+     ---------------------------------------------------------- */
+  --color-surface-50: #f6f9fc;
+  --color-surface-100: #eef4f8;
+  --color-surface-200: #e2e8f0;
+  --color-surface-300: #cbd5e1;
+  --color-surface-400: #94a3b8;
+  --color-surface-500: #64748b;
+  --color-surface-600: #475569;
+  --color-surface-700: #27406b;
+  --color-surface-800: #10234a;
+  --color-surface-900: #071f5c;
+
+  /* ----------------------------------------------------------
+     TYPOGRAPHY
+     ---------------------------------------------------------- */
+  --font-sans: 'Inter', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+}
+
+/* ============================================================
+   BASE
+   ============================================================ */
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    margin: 0;
+    font-family: var(--font-sans);
+    background: var(--color-surface-50);
+    color: var(--color-surface-800);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection {
+    background: var(--color-primary-200);
+    color: var(--color-surface-900);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-primary-500);
+    outline-offset: 2px;
+  }
+
+  input[type='number']::-webkit-inner-spin-button,
+  input[type='number']::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  input[type='number'] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+/* ============================================================
+   UTILITIES
+   ============================================================ */
+
+@layer utilities {
+  /* Brand gradient: Jioplix Blue -> Light Blue -> Teal */
+  .gradient-healthcare {
+    background: linear-gradient(135deg, #1265e8 0%, #1688f8 45%, #08bfa9 100%);
+  }
+
+  .gradient-healthcare-soft {
+    background: linear-gradient(135deg, #eef5ff 0%, #eafbf8 100%);
+  }
+
+  .shadow-healthcare {
+    box-shadow:
+      0 1px 3px rgba(15, 35, 75, 0.06),
+      0 4px 12px rgba(15, 35, 75, 0.05);
+  }
+
+  .shadow-healthcare-lg {
+    box-shadow:
+      0 4px 14px rgba(15, 35, 75, 0.08),
+      0 12px 30px rgba(15, 35, 75, 0.1);
+  }
+
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: var(--color-surface-300);
+    border-radius: 3px;
+  }
+}
+
+/* ============================================================
+   SPECIALTY THEMES — PRD Epic 12 (clinic-type theming)
+   Apply `theme-<type>` on a page/section root; children use
+   .specialty-header / .specialty-title / .specialty-icon /
+   .specialty-card to pick up the active specialty accent.
+   ============================================================ */
+
+:root {
+  --specialty-primary: #1265e8;
+  --specialty-soft: #edf5ff;
+}
+
+.theme-dental {
+  --specialty-primary: #1265e8;
+  --specialty-soft: #edf5ff;
+}
+
+.theme-pediatrics {
+  --specialty-primary: #7c3aed;
+  --specialty-soft: #f5f0ff;
+}
+
+.theme-gynecology {
+  --specialty-primary: #ec3f83;
+  --specialty-soft: #fff0f6;
+}
+
+.theme-dermatology {
+  --specialty-primary: #08a88a;
+  --specialty-soft: #eafbf7;
+}
+
+.theme-general {
+  --specialty-primary: #1265e8;
+  --specialty-soft: #edf5ff;
+}
+
+.specialty-header {
+  border-left: 4px solid var(--specialty-primary);
+}
+
+.specialty-title {
+  color: var(--specialty-primary);
+}
+
+.specialty-icon {
+  color: var(--specialty-primary);
+}
+
+.specialty-card {
+  border-top: 3px solid var(--specialty-primary);
+  background: var(--specialty-soft);
+}
