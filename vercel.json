@@ -2,12 +2,12 @@
   "version": 2,
   "builds": [
     {
-      "src": "apps/web/package.json",
+      "src": "package.json",
       "use": "@vercel/static-build",
       "config": {
-        "distDir": "dist",
-        "installCommand": "cd apps/web && npm install",
-        "buildCommand": "cd apps/web && npm run build"
+        "distDir": "apps/web/dist",
+        "installCommand": "npm install --include=dev",
+        "buildCommand": "npm run build -w @jioplix/web"
       }
     }
   ],
