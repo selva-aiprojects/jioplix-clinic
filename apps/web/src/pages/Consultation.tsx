@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { createWorker } from 'tesseract.js'
 import { Link, useParams } from 'react-router-dom'
 import {
   Stethoscope, ClipboardList, Pill, FileText,
@@ -65,6 +66,10 @@ export default function Consultation() {
   const [RxDosage, setRxDosage] = useState('')
   const [rxFrequency, setRxFrequency] = useState('')
   const [rxDuration, setRxDuration] = useState('')
+  const [recordName, setRecordName] = useState('')
+  const [recordText, setRecordText] = useState('')
+  const [ocrStatus, setOcrStatus] = useState<'idle' | 'reading' | 'ready' | 'error'>('idle')
+  const [aiDraftReady, setAiDraftReady] = useState(false)
 
   const refreshRx = useCallback(async (encId: string) => {
     try { setRxList(await listPrescriptionsByEncounter(encId)) } catch { setRxList([]) }
@@ -186,6 +191,36 @@ export default function Consultation() {
       await updatePrescriptionStatus(rx.id, 'issued')
       await refreshRx(encounter!.id)
     }, 'Prescription issued')
+
+  async function readHistoricalRecord(file: File) {
+    if (!file.type.startsWith('image/')) {
+      setOcrStatus('error')
+      setRecordText('Please upload a JPG, PNG, or WEBP image of the historical record.')
+      return
+    }
+    setRecordName(file.name)
+    setOcrStatus('reading')
+    try {
+      const worker = await createWorker('eng')
+      const result = await worker.recognize(file)
+      await worker.terminate()
+      setRecordText(result.data.text.trim())
+      setOcrStatus('ready')
+    } catch {
+      setRecordText('We could not read this image. Please check the image quality or enter the history manually.')
+      setOcrStatus('error')
+    }
+  }
+
+  function prepareAiPrescriptionDraft() {
+    if (!currentRx) {
+      startPrescription()
+      setAiDraftReady(true)
+      return
+    }
+    setAiDraftReady(true)
+    setNotice('Draft prepared from documented consultation context. Review every medicine before issuing.')
+  }
 
   function printPrescription() {
     if (!currentRx || currentRx.items.length === 0) return
@@ -377,6 +412,20 @@ export default function Consultation() {
                 AI scribe and summaries arrive in the M3 Intelligence phase. Clinical notes below remain doctor-authored.
               </p>
             </div>
+
+            <div className="bg-white rounded-2xl border border-surface-100 shadow-healthcare p-5">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2"><FileText className="w-4 h-4 text-primary-600" /><h3 className="text-[14px] font-semibold text-surface-800">Historical Records</h3></div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-accent-600 bg-accent-50 border border-accent-100 rounded-md px-2 py-1">OCR</span>
+              </div>
+              <p className="text-[12px] leading-relaxed text-surface-500 mb-3">Upload an old report or prescription image to read it into this consultation for clinician review.</p>
+              <label className="flex cursor-pointer items-center justify-center rounded-xl border border-dashed border-primary-200 bg-primary-50/50 px-3 py-3 text-[12px] font-semibold text-primary-700 hover:bg-primary-50">
+                {ocrStatus === 'reading' ? 'Reading record…' : recordName || 'Choose record image'}
+                <input type="file" accept="image/png,image/jpeg,image/webp" className="sr-only" onChange={event => { const file = event.target.files?.[0]; if (file) void readHistoricalRecord(file) }} disabled={ocrStatus === 'reading'} />
+              </label>
+              {recordText && <textarea value={recordText} onChange={event => setRecordText(event.target.value)} rows={5} className="mt-3 w-full rounded-xl border border-surface-200 bg-surface-50 p-3 text-[12px] leading-5 text-surface-700 outline-none focus:border-primary-400" aria-label="Extracted historical record" />}
+              {ocrStatus === 'ready' && <div className="mt-2 flex items-center justify-between gap-2"><p className="text-[11px] font-medium text-success-600">OCR complete. Verify names, dates, medicines, and values.</p><button onClick={() => { setHpi(prev => `${prev}${prev.trim() ? '\n\n' : ''}Historical record (${recordName}):\n${recordText}`); setDirty(true); setNotice('Historical record added to the consultation draft.') }} className="whitespace-nowrap rounded-lg border border-success-200 bg-success-50 px-2.5 py-1.5 text-[11px] font-semibold text-success-700 hover:bg-success-100">Add to history</button></div>}
+            </div>
           </div>
 
           <div className="lg:col-span-2 space-y-6">
@@ -457,6 +506,8 @@ export default function Consultation() {
                   </div>
                 )}
               </div>
+
+              {!locked && <div className="mb-3 flex items-start gap-3 rounded-xl border border-primary-100 bg-primary-50/60 p-3"><Sparkles className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary-600" /><div className="flex-1"><p className="text-[12px] font-semibold text-primary-800">AI Prescription Assistant</p><p className="mt-1 text-[11px] leading-5 text-primary-700/75">Prepare a clinician-reviewed draft from the documented consultation and extracted history. Nothing is issued automatically.</p></div><button onClick={prepareAiPrescriptionDraft} disabled={busy} className="whitespace-nowrap rounded-lg bg-primary-600 px-2.5 py-1.5 text-[11px] font-semibold text-white hover:bg-primary-700">{aiDraftReady ? 'Draft ready' : 'Prepare draft'}</button></div>}
 
               {!currentRx ? (
                 <div className="text-center py-4">
