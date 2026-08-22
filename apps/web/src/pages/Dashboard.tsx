@@ -1,5 +1,5 @@
 import {
-  Users, Calendar, Clock, CheckCircle2, IndianRupee, AlertCircle,
+  Users, Calendar, Clock, CheckCircle2,
   UserPlus, CreditCard, Beaker, Pill,
   Sparkles, TrendingUp, Timer, Stethoscope,
 } from 'lucide-react'
@@ -9,15 +9,6 @@ import { useAuth } from '../auth/useAuth'
 import { useEffect, useState } from 'react'
 import { listQueue, listAppointments } from '../lib/api'
 import type { QueueToken, Appointment } from '../lib/api'
-
-const metrics = [
-  { label: 'Appointments', value: '24', change: '+12%', up: true, icon: Calendar, tone: 'teal' as const },
-  { label: 'Checked In', value: '18', change: '+8%', up: true, icon: CheckCircle2, tone: 'green' as const },
-  { label: 'Waiting', value: '6', change: '-2', up: false, icon: Clock, tone: 'amber' as const },
-  { label: 'In Consultation', value: '3', change: '', up: true, icon: Stethoscope, tone: 'indigo' as const },
-  { label: "Today's Revenue", value: '₹48,500', change: '+18%', up: true, icon: IndianRupee, tone: 'green' as const },
-  { label: 'Outstanding', value: '₹12,300', change: '-5%', up: false, icon: AlertCircle, tone: 'rose' as const },
-]
 
 const statusColor: Record<string, string> = {
   'Waiting': 'bg-warning-100 text-warning-700 border-warning-200',

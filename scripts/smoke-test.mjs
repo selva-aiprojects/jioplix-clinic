@@ -2,6 +2,7 @@ import { spawn, execSync } from 'node:child_process'
 import { readFileSync, existsSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { Pool } from 'pg'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const results = []
@@ -23,21 +24,28 @@ const PORT = 3100
 const BASE = `http://localhost:${PORT}/api/v1`
 const DEMO_PW = 'demo1234'
 
-const PSQL_DIRS = ['C:\\Program Files\\PostgreSQL\\17\\bin', 'C:\\Program Files\\PostgreSQL\\18\\bin']
-const psqlDir = PSQL_DIRS.find((d) => existsSync(join(d, 'psql.exe')))
-const psql = (sql) =>
-  execSync(
-    `"${join(psqlDir, 'psql.exe')}" -U jioplix -p 5434 -d jioplix -t -A -c "${sql.replace(/\s+/g, ' ').trim()}"`,
-    { env: { ...process.env, PGPASSWORD: 'jioplix' }, encoding: 'utf8' },
-  ).trim()
+const pgPool = new Pool({ connectionString: DATABASE_URL, ssl: { rejectUnauthorized: false } })
+const psql = async (sql) => {
+  const client = await pgPool.connect()
+  try {
+    const res = await client.query(sql)
+    if (res.rows.length === 0) return ''
+    if (res.rows.length === 1 && Object.keys(res.rows[0]).length === 1) {
+      return String(res.rows[0][Object.keys(res.rows[0])[0]])
+    }
+    return res.rows.map(r => String(Object.values(r)[0])).join('\n')
+  } finally {
+    client.release()
+  }
+}
 
-const tenantSchemas = () =>
-  psql("SELECT schema_name FROM public.tenants WHERE status='active'")
+const tenantSchemas = async () =>
+  (await psql("SELECT schema_name FROM public.tenants WHERE status='active'"))
     .split(/\r?\n/)
     .map((s) => s.trim())
     .filter(Boolean)
 
-const schemaBySlug = (slug) => psql(`SELECT schema_name FROM public.tenants WHERE slug='${slug}'`)
+const schemaBySlug = async (slug) => await psql(`SELECT schema_name FROM public.tenants WHERE slug='${slug}'`)
 
 async function check(name, fn) {
   try {
@@ -83,20 +91,20 @@ const bearer = (session) => ({ authorization: `Bearer ${session.accessToken}` })
 
 console.log('\n=== Jioplix Smoke Test ===\n')
 
-await check('DB-1  PostgreSQL reachable on :5434', () => {
-  const v = psql('SELECT version()')
+await check('DB-1  PostgreSQL reachable on :5434', async () => {
+  const v = await psql('SELECT version()')
   assert(v.includes('PostgreSQL'), 'no PostgreSQL response')
 })
 
-await check('DB-2  Global registry: 4 plans, 4 active tenants', () => {
-  const plans = Number(psql('SELECT count(*) FROM public.plans'))
-  const tenants = Number(psql("SELECT count(*) FROM public.tenants WHERE status='active'"))
+await check('DB-2  Global registry: 4 plans, 4 active tenants', async () => {
+  const plans = Number(await psql('SELECT count(*) FROM public.plans'))
+  const tenants = Number(await psql("SELECT count(*) FROM public.tenants WHERE status='active'"))
   assert(plans === 4, `expected 4 plans, got ${plans}`)
   assert(tenants === 4, `expected 4 active tenants, got ${tenants}`)
 })
 
-await check('DB-3  Every tenant schema migrated to 0003_auth', () => {
-  const missing = psql(
+await check('DB-3  Every tenant schema migrated to 0003_auth', async () => {
+  const missing = await psql(
     `SELECT t.slug FROM public.tenants t WHERE NOT EXISTS (
        SELECT 1 FROM information_schema.tables ist
        WHERE ist.table_schema = t.schema_name AND ist.table_name = 'refresh_tokens')`,
@@ -104,9 +112,10 @@ await check('DB-3  Every tenant schema migrated to 0003_auth', () => {
   assert(missing === '', `missing refresh_tokens in: ${missing}`)
 })
 
-await check('AUTH-0  Demo users have password hashes seeded', () => {
+await check('AUTH-0  Demo users have password hashes seeded', async () => {
+  const novaSchema = await schemaBySlug('nova')
   const n = Number(
-    psql(`SELECT count(*) FROM t_4ca9e94d.users WHERE password_hash LIKE 'scrypt$%'`),
+    await psql(`SELECT count(*) FROM ${novaSchema}.users WHERE password_hash LIKE 'scrypt$%'`),
   )
   assert(n >= 5, `expected >=5 hashed passwords in nova, got ${n}`)
 })
@@ -217,11 +226,11 @@ await check('ISO-2  Spoofed x-tenant-id header ignored — token tenant wins', a
     headers: { ...bearer(s), 'x-tenant-id': 'sunrise' },
   })
   assert(status === 200 && Array.isArray(body.data) && body.data.length > 0, JSON.stringify(body))
-  const novaSchema = schemaBySlug('nova')
-  const sunriseSchema = schemaBySlug('sunrise')
+  const novaSchema = await schemaBySlug('nova')
+  const sunriseSchema = await schemaBySlug('sunrise')
   const firstNovaPatient = body.data[0].id
-  const inSunrise = Number(psql(`SELECT count(*) FROM ${sunriseSchema}.patients WHERE id='${firstNovaPatient}'`))
-  const inNova = Number(psql(`SELECT count(*) FROM ${novaSchema}.patients WHERE id='${firstNovaPatient}'`))
+  const inSunrise = Number(await psql(`SELECT count(*) FROM ${sunriseSchema}.patients WHERE id='${firstNovaPatient}'`))
+  const inNova = Number(await psql(`SELECT count(*) FROM ${novaSchema}.patients WHERE id='${firstNovaPatient}'`))
   assert(inNova === 1 && inSunrise === 0, 'token/header tenancy mismatch!')
 })
 
@@ -283,15 +292,15 @@ await check('API-6b Two rapid creates get DISTINCT MRNs', async () => {
   assert(a.body.data.mrn !== b.body.data.mrn, `MRN collision: ${a.body.data.mrn}`)
 })
 
-await check('ISO-1  New patient exists ONLY in sunrise schema (no cross-tenant leak)', () => {
-  const sunriseSchema = schemaBySlug('sunrise')
-  for (const s of tenantSchemas()) {
+await check('ISO-1  New patient exists ONLY in sunrise schema (no cross-tenant leak)', async () => {
+  const sunriseSchema = await schemaBySlug('sunrise')
+  for (const s of await tenantSchemas()) {
     if (s === sunriseSchema) continue
-    const n = Number(psql(`SELECT count(*) FROM ${s}.patients WHERE phone='${testPhone}'`))
+    const n = Number(await psql(`SELECT count(*) FROM ${s}.patients WHERE phone='${testPhone}'`))
     assert(n === 0, `leak! found test patient in ${s}`)
   }
   const inSunrise = Number(
-    psql(`SELECT count(*) FROM ${sunriseSchema}.patients WHERE phone='${testPhone}'`),
+    await psql(`SELECT count(*) FROM ${sunriseSchema}.patients WHERE phone='${testPhone}'`),
   )
   assert(inSunrise === 1, 'patient missing from sunrise schema')
 })
@@ -307,7 +316,7 @@ await check('API-7  Invalid patient payload -> VALIDATION_FAILED', async () => {
 })
 
 const today = new Date().toISOString().slice(0, 10)
-const novaSchema = schemaBySlug('nova')
+const novaSchema = await schemaBySlug('nova')
 
 await check('RBAC-3  Pharmacist denied appointment list', async () => {
   const s = await login('nova', '+919800000202')
@@ -323,8 +332,8 @@ await check('DOC-1  Doctor reads own schedule (migration 0004 perms)', async () 
 
 await check('APPT-1  Receptionist creates appointment for today', async () => {
   const s = await login('nova', '+919800000201')
-  const patientId = psql(`SELECT id FROM ${novaSchema}.patients WHERE first_name='Ananya' LIMIT 1`)
-  const doctorId = psql(`SELECT id FROM ${novaSchema}.users WHERE full_name LIKE 'Dr.%' LIMIT 1`)
+  const patientId = await psql(`SELECT id FROM ${novaSchema}.patients WHERE first_name='Ananya' LIMIT 1`)
+  const doctorId = await psql(`SELECT id FROM ${novaSchema}.users WHERE full_name LIKE 'Dr.%' LIMIT 1`)
   const scheduledAt = new Date(Date.now() + 60 * 60 * 1000).toISOString()
   const { status, body } = await req('/appointments', {
     method: 'POST',
@@ -352,7 +361,7 @@ await check('APPT-2  Today list includes the new appointment', async () => {
 
 await check('APPT-3  Check-in issues queue token; invalid transition rejected', async () => {
   const s = await login('nova', '+919800000201')
-  const apptId = psql(`SELECT id FROM ${novaSchema}.appointments WHERE notes='SMOKE_TEST' LIMIT 1`)
+  const apptId = await psql(`SELECT id FROM ${novaSchema}.appointments WHERE notes='SMOKE_TEST' LIMIT 1`)
 
   const bad = await req(`/appointments/${apptId}/status`, {
     method: 'PATCH',
@@ -382,7 +391,8 @@ await check('QUEUE-1  Queue lists token with waiting count; transitions enforced
   const { status, body } = await req(`/queue?date=${today}`, { headers: bearer(s) })
   assert(status === 200 && Array.isArray(body.data.tokens), JSON.stringify(body))
   assert(body.data.waiting > 0, 'expected waiting tokens')
-  const smokeToken = body.data.tokens.find((t) => t.appointmentId === psql(`SELECT id FROM ${novaSchema}.appointments WHERE notes='SMOKE_TEST' LIMIT 1`))
+  const smokeApptId = await psql(`SELECT id FROM ${novaSchema}.appointments WHERE notes='SMOKE_TEST' LIMIT 1`)
+  const smokeToken = body.data.tokens.find((t) => t.appointmentId === smokeApptId)
   assert(smokeToken, 'smoke token not in queue')
 
   const skip = await req(`/queue/${smokeToken.id}/status`, {
@@ -409,7 +419,7 @@ await check('QUEUE-1  Queue lists token with waiting count; transitions enforced
 
 await check('APPT-4  Unknown patient -> PATIENT_NOT_FOUND', async () => {
   const s = await login('nova', '+919800000201')
-  const doctorId = psql(`SELECT id FROM ${novaSchema}.users WHERE full_name LIKE 'Dr.%' LIMIT 1`)
+  const doctorId = await psql(`SELECT id FROM ${novaSchema}.users WHERE full_name LIKE 'Dr.%' LIMIT 1`)
   const { status, body } = await req('/appointments', {
     method: 'POST',
     headers: { ...bearer(s), 'content-type': 'application/json' },
@@ -426,14 +436,15 @@ if (apiProcess) {
   apiProcess.kill()
 }
 
-await check('CLEAN-1  Smoke-test rows removed from all tenant schemas', () => {
-  for (const s of tenantSchemas()) {
-    psql(`DELETE FROM ${s}.queue_tokens WHERE appointment_id IN (SELECT id FROM ${s}.appointments WHERE notes='SMOKE_TEST')`)
-    psql(`DELETE FROM ${s}.appointments WHERE notes='SMOKE_TEST'`)
-    psql(`DELETE FROM ${s}.patients WHERE phone LIKE '+919999%'`)
+await check('CLEAN-1  Smoke-test rows removed from all tenant schemas', async () => {
+  for (const s of await tenantSchemas()) {
+    await psql(`DELETE FROM ${s}.queue_tokens WHERE appointment_id IN (SELECT id FROM ${s}.appointments WHERE notes='SMOKE_TEST')`)
+    await psql(`DELETE FROM ${s}.appointments WHERE notes='SMOKE_TEST'`)
+    await psql(`DELETE FROM ${s}.patients WHERE phone LIKE '+919999%'`)
   }
+  const sunriseSchema = await schemaBySlug('sunrise')
   const left = Number(
-    psql(`SELECT count(*) FROM ${schemaBySlug('sunrise')}.patients WHERE phone LIKE '+919999%'`),
+    await psql(`SELECT count(*) FROM ${sunriseSchema}.patients WHERE phone LIKE '+919999%'`),
   )
   assert(left === 0, 'cleanup failed')
 })

@@ -1,6 +1,6 @@
 # Jioplix Backend Architecture
 
-Version: 1.0 · Date: 2026-08-21
+Version: 1.1 · Date: 2026-08-22
 Companion documents: `docs/prd.md` (v4.0), `docs/progress.md`
 
 ---
@@ -230,3 +230,149 @@ Seeds mirror the UI demo data (Dr. Priya, Rajesh Kumar, tokens #12–17…).
 2. WhatsApp BSP choice (pricing/throughput quotes pending)
 3. SMS OTP provider (MSG91 assumed)
 4. Mobile app roadmap — REST already supports it; native shell undecided
+
+## 11. Deployment Architecture
+
+### 11.1 Principle
+
+Separate stateless frontend from stateful backend. Frontend fits serverless; backend requires a persistent process.
+
+### 11.2 Topology
+
+```
+Vercel (Frontend)
+  └── Static build of @jioplix/web
+  └── SPA fallback routing (vercel.json)
+  └── Env: VITE_API_URL → https://api.yourdomain.com/api/v1
+
+Render (Backend)
+  └── Node.js 22 process running NestJS @jioplix/api
+  └── Port from process.env.PORT (Render injects this automatically)
+  └── Env: DATABASE_URL, JWT_SECRET, REDIS_URL, S3_*
+
+Aiven Postgres (or Neon / Supabase)
+  └── Single cluster, schema-per-tenant (see §3)
+
+Redis (Upstash / Render Redis)
+  └── Sessions cache, rate limits, BullMQ workers
+
+S3-compatible (Cloudflare R2 / Backblaze B2 / AWS S3)
+  └── Documents, lab PDFs, images
+```
+
+### 11.3 Frontend: Vercel
+
+- **Build:** `npm run build -w @jioplix/web` → `apps/web/dist`
+- **Config:** `vercel.json` at repo root
+- **Root Directory:** `.` (repo root)
+- **Output Directory:** `apps/web/dist`
+- **Install Command:** `npm install`
+- **Build Command:** `npm run build -w @jioplix/web`
+- **Environment Variable:** `VITE_API_URL` (set in Vercel dashboard)
+- **Why Vercel:** Edge CDN, preview deployments per PR, zero-config SPA routing, free tier sufficient for staging.
+
+### 11.4 Backend: Render
+
+Do NOT deploy NestJS as Vercel Serverless Functions. Reasons:
+
+- `pg.Pool` connections are not reused across invocations; cold starts exhaust connection limits.
+- NestJS startup + Drizzle + tenant schema lookup adds seconds of latency on every cold start.
+- Vercel Hobby tier 10s timeout kills long-running requests (file uploads, AI jobs).
+- BullMQ workers need a long-lived process; Vercel Functions are stateless.
+
+**Recommended platform: Render** (free tier available, already configured).
+
+**Deploy steps:**
+
+1. Create a new **Web Service** in Render, connect your repo
+2. Set **Root Directory** to `apps/api`
+3. Set **Runtime** to `Node`
+4. Set **Build Command** to `npm install && npm run build`
+5. Set **Start Command** to `npm run start`
+6. Add environment variables (see §11.6)
+7. Deploy — Render builds and starts the service
+
+**Why this works:** Persistent Node.js process keeps `pg.Pool` warm; Redis and Postgres are external so the API is truly stateless and horizontally scalable.
+
+**Render-specific notes:**
+
+- Free tier spins down after 15 minutes of inactivity; first request after spin-down takes ~30s to wake up. Upgrade to Starter ($7/mo) for always-on.
+- Health check path: `/healthz` (Render probes this automatically)
+- Logs available in Render dashboard; set up email alerts for crash loops
+- Auto-deploy on push to `main`; disable auto-deploy for preview branches if desired
+
+### 11.5 CI/CD Flow
+
+```
+Git push to main
+  ├── Vercel detects change → builds frontend → preview → production
+  └── Render detects change → builds API → rolls out with zero-downtime deploy
+
+Pull request
+  └── Vercel creates preview deployment with PR-specific URL
+```
+
+Frontend and backend deploy independently. A frontend change does not trigger an API rebuild.
+
+### 11.6 Environment Variables
+
+**Vercel (Frontend):**
+
+| Variable | Example | Purpose |
+|---|---|---|
+| `VITE_API_URL` | `https://jioplix-api.up.railway.app/api/v1` | Base URL for all API calls |
+
+**Render (Backend):**
+
+| Variable | Example | Purpose |
+|---|---|---|
+| `DATABASE_URL` | `postgres://user:pass@host:5432/jioplix` | Postgres connection (Aiven / Neon) |
+| `JWT_SECRET` | `long-random-string` | JWT signing key |
+| `JWT_ACCESS_TTL` | `15m` | Access token expiry |
+| `JWT_REFRESH_TTL` | `7d` | Refresh token expiry |
+| `REDIS_URL` | `redis://host:6379` | Redis connection |
+| `S3_ENDPOINT` | `https://s3.amazonaws.com` | S3-compatible endpoint |
+| `S3_ACCESS_KEY` | `AKIA...` | S3 access key |
+| `S3_SECRET_KEY` | `...` | S3 secret key |
+| `S3_BUCKET` | `jioplix-documents` | S3 bucket name |
+| `PORT` | `3000` | Set by platform; do not hardcode |
+
+**Note:** `REDIS_URL` and S3 credentials require add-ons. Render offers Upstash Redis Marketplace add-on; Upstash also has a free tier for Redis.
+
+### 11.7 Database Migrations
+
+Migrations live in `packages/db/migrations/`. Apply them via the CLI:
+
+```bash
+npm run db:migrate -- --url $DATABASE_URL
+```
+
+On Render, use a **Startup Command** (under "Deploy" → "Start Command") that runs migrations before starting the server:
+
+```bash
+npm run db:migrate -- --url $DATABASE_URL && npm run start
+```
+
+Alternatively, add a separate Render **Background Worker** service that runs migrations on a schedule or via deploy hook.
+
+### 11.8 Health Checks
+
+Render auto-probes `GET /healthz` on the platform-assigned port. The NestJS `HealthController` should report:
+
+- Liveness: `GET /healthz` → `200 { status: "ok" }`
+- Readiness: `GET /readyz` → checks `DATABASE_URL` (pool query `SELECT 1`) and `REDIS_URL` (PING)
+
+Set the service's health check path to `/healthz` in Render dashboard.
+
+### 11.9 Cost Estimate (Production, ~100 tenants)
+
+| Service | Tier | Est. Cost |
+|---|---|---|
+| Vercel Pro | Frontend | $20/mo |
+| Render | Backend (Starter) | $7/mo |
+| Upstash Redis | Free tier → $0.20/mo beyond | $0–5/mo |
+| Aiven Postgres | 2 vCPU / 4 GB | $30–50/mo |
+| Cloudflare R2 | Storage + egress | Pay-as-you-go (~$5–15/mo) |
+| **Total** | | **~$62–97/mo** |
+
+Staging (free tiers): Vercel Hobby ($0) + Render Free ($0, spin-down) + Upstash Free ($0) + Neon Free ($0) = **$0/mo** with slower cold starts.

@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import {
-  Search, Plus, Phone, Calendar, FileText,
-  ChevronRight, Shield, Clock,
+  Search, Plus, Phone, FileText,
+  ChevronRight, Shield,
 } from 'lucide-react'
 import { PageHeader, Button } from '../components/ui'
 import { listPatients } from '../lib/api'

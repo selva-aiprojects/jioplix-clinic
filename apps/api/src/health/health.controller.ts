@@ -7,6 +7,11 @@ import { Public } from '../auth/auth.decorators.js'
 export class HealthController {
   constructor(private readonly db: DbService) {}
 
+  @Get()
+  root() {
+    return { service: 'jioplix-api', status: 'ok', docs: '/api/v1' }
+  }
+
   @Get('healthz')
   liveness() {
     return { status: 'ok' }

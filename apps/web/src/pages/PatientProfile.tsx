@@ -1,8 +1,6 @@
 import { useParams, Link } from 'react-router-dom'
 import {
-  ArrowLeft, Phone, Mail, Shield, Calendar, Pill,
-  Beaker, AlertTriangle, Sparkles,
-  Heart, Activity, Thermometer, Droplets, Stethoscope, User,
+  ArrowLeft, Phone, Mail, Shield, Calendar,
   MapPin, Printer,
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
@@ -12,7 +10,7 @@ import type { Patient } from '../lib/api'
 
 const defaultPatient: Partial<Patient> = {
   id: '', firstName: '', lastName: '', phone: '', email: '', gender: '',
-  bloodGroup: '', abhaNumber: null, dateOfBirth: '', address: {},
+  bloodGroup: '', dateOfBirth: '', address: {},
 }
 
 export default function PatientProfile() {
