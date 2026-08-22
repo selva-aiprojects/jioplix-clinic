@@ -1,12 +1,17 @@
 import { useParams, Link } from 'react-router-dom'
 import {
   ArrowLeft, Phone, Mail, Shield, Calendar,
-  MapPin, Printer,
+  MapPin, Printer, ClipboardList, ReceiptText,
+  Lock, ArrowUpRight,
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Button } from '../components/ui'
-import { getPatient } from '../lib/api'
-import type { Patient } from '../lib/api'
+import { getPatient, listPatientEncounters, listInvoices, getPatientOutstanding } from '../lib/api'
+import type { Patient, PatientEncounterSummary, Invoice } from '../lib/api'
+
+function formatPaise(paise: number): string {
+  return `₹${(paise / 100).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`
+}
 
 const defaultPatient: Partial<Patient> = {
   id: '', firstName: '', lastName: '', phone: '', email: '', gender: '',
@@ -16,15 +21,30 @@ const defaultPatient: Partial<Patient> = {
 export default function PatientProfile() {
   const { id } = useParams()
   const [patient, setPatient] = useState<Patient | null>(null)
+  const [encounters, setEncounters] = useState<PatientEncounterSummary[]>([])
+  const [invoices, setInvoices] = useState<Invoice[]>([])
+  const [outstanding, setOutstanding] = useState(0)
   const [loading, setLoading] = useState(true)
+  const [tab, setTab] = useState<'timeline' | 'billing'>('timeline')
 
   useEffect(() => {
     let cancelled = false
     async function load() {
       if (!id) return
       try {
-        const data = await getPatient(id)
-        if (!cancelled) setPatient(data)
+        const p = await getPatient(id)
+        if (cancelled) return
+        setPatient(p)
+        const [encs, invs, out] = await Promise.all([
+          listPatientEncounters(id).catch(() => []),
+          listInvoices({ patientId: id }).catch(() => []),
+          getPatientOutstanding(id).catch(() => ({ patientId: id, outstandingPaise: 0 })),
+        ])
+        if (!cancelled) {
+          setEncounters(encs)
+          setInvoices(invs)
+          setOutstanding(out.outstandingPaise)
+        }
       } catch {
         if (!cancelled) setPatient(null)
       } finally {
@@ -84,7 +104,6 @@ export default function PatientProfile() {
       <div className="grid lg:grid-cols-3 gap-6">
         {/* Left Column - Info */}
         <div className="space-y-6">
-          {/* Contact */}
           <div className="bg-white rounded-2xl border border-surface-100 shadow-healthcare p-5">
             <h3 className="text-[14px] font-semibold text-surface-800 mb-4">Contact Information</h3>
             <div className="space-y-3">
@@ -103,7 +122,6 @@ export default function PatientProfile() {
             </div>
           </div>
 
-          {/* ABHA / Blood */}
           <div className="bg-white rounded-2xl border border-surface-100 shadow-healthcare p-5">
             <h3 className="text-[14px] font-semibold text-surface-800 mb-3">Identifiers</h3>
             <div className="space-y-2">
@@ -124,17 +142,102 @@ export default function PatientProfile() {
               )}
             </div>
           </div>
+
+          <div className="bg-white rounded-2xl border border-surface-100 shadow-healthcare p-5">
+            <h3 className="text-[14px] font-semibold text-surface-800 mb-3">Summary</h3>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-surface-50 rounded-xl p-3">
+                <p className="text-[11px] text-surface-400 uppercase tracking-wider">Encounters</p>
+                <p className="text-[18px] font-bold text-surface-800 mt-0.5">{encounters.length}</p>
+              </div>
+              <div className="bg-surface-50 rounded-xl p-3">
+                <p className="text-[11px] text-surface-400 uppercase tracking-wider">Invoices</p>
+                <p className="text-[18px] font-bold text-surface-800 mt-0.5">{invoices.length}</p>
+              </div>
+              <div className="col-span-2 bg-warning-50/60 border border-warning-100 rounded-xl p-3">
+                <p className="text-[11px] text-warning-500 uppercase tracking-wider">Outstanding</p>
+                <p className="text-[16px] font-bold text-warning-700 mt-0.5">{formatPaise(outstanding)}</p>
+              </div>
+            </div>
+          </div>
         </div>
 
-        {/* Center - Timeline (placeholder pending richer API) */}
+        {/* Right Column - History */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Vitals placeholder */}
-          <div className="bg-white rounded-2xl border border-surface-100 shadow-healthcare p-5">
-            <h3 className="text-[14px] font-semibold text-surface-800 mb-4">Patient Record</h3>
-            <p className="text-[13px] text-surface-500">
-              Registered on {p.createdAt ? new Date(p.createdAt).toLocaleDateString() : 'N/A'}.
-              Detailed vitals, timeline, prescriptions, and lab reports will appear here as those modules are wired.
-            </p>
+          <div className="bg-white rounded-2xl border border-surface-100 shadow-healthcare overflow-hidden">
+            <div className="flex items-center gap-1 px-5 pt-4 pb-3 border-b border-surface-100">
+              <button
+                onClick={() => setTab('timeline')}
+                className={`px-4 py-2 rounded-lg text-[13px] font-medium transition-all ${tab === 'timeline' ? 'bg-primary-50 text-primary-700' : 'text-surface-500 hover:bg-surface-50'}`}
+              >
+                Clinical History
+              </button>
+              <button
+                onClick={() => setTab('billing')}
+                className={`px-4 py-2 rounded-lg text-[13px] font-medium transition-all ${tab === 'billing' ? 'bg-primary-50 text-primary-700' : 'text-surface-500 hover:bg-surface-50'}`}
+              >
+                Billing
+              </button>
+            </div>
+
+            <div className="p-5">
+              {loading ? (
+                <p className="text-[13px] text-surface-400 py-6 text-center">Loading patient record…</p>
+              ) : tab === 'timeline' ? (
+                encounters.length === 0 ? (
+                  <p className="text-[13px] text-surface-400 py-6 text-center">No consultations recorded yet.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {encounters.map(e => (
+                      <Link key={e.id} to={`/encounters/${e.id}`} className="block p-4 rounded-xl bg-surface-50 border border-surface-100 hover:bg-surface-100/70 transition-colors group">
+                        <div className="flex items-center gap-2 mb-1.5">
+                          <ClipboardList className="w-4 h-4 text-primary-500" />
+                          <span className="text-[13px] font-semibold text-surface-800">{e.encounterDate}</span>
+                          <span className="text-[11px] text-surface-400">· {e.doctorName}</span>
+                          {e.isLocked && <Lock className="w-3 h-3 text-success-500" />}
+                          <ArrowUpRight className="w-3.5 h-3.5 text-surface-300 ml-auto group-hover:text-primary-500 transition-colors" />
+                        </div>
+                        {e.chiefComplaint && (
+                          <p className="text-[12px] text-surface-600"><strong>Complaint:</strong> {e.chiefComplaint}</p>
+                        )}
+                        {e.diagnoses.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5 mt-2">
+                            {e.diagnoses.map((d, i) => (
+                              <span key={i} className="px-2 py-0.5 rounded-md bg-info-50 text-info-600 text-[11px] font-medium border border-info-100">
+                                {d.icd10Code} · {d.icd10Name}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </Link>
+                    ))}
+                  </div>
+                )
+              ) : invoices.length === 0 ? (
+                <p className="text-[13px] text-surface-400 py-6 text-center">No invoices for this patient.</p>
+              ) : (
+                <div className="space-y-3">
+                  {invoices.map(inv => {
+                    const date = new Date(inv.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+                    return (
+                      <div key={inv.id} className="flex items-center gap-3 p-4 rounded-xl bg-surface-50 border border-surface-100">
+                        <ReceiptText className="w-4 h-4 text-accent-500" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[13px] font-semibold text-surface-800">{inv.invoiceNo}</p>
+                          <p className="text-[11px] text-surface-400">{date}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-[13px] font-bold text-surface-800">{formatPaise(inv.totalPaise)}</p>
+                          <p className={`text-[11px] font-medium ${inv.balancePaise <= 0 ? 'text-success-600' : inv.paidPaise > 0 ? 'text-warning-600' : 'text-danger-500'}`}>
+                            {inv.status === 'paid' ? 'Paid' : inv.balancePaise > 0 && inv.paidPaise > 0 ? `Partial · due ${formatPaise(inv.balancePaise)}` : `Due ${formatPaise(inv.balancePaise)}`}
+                          </p>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>

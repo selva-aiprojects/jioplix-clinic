@@ -487,7 +487,7 @@ export async function addPayment(invoiceId: string, data: {
   reference?: string
   notes?: string
 }): Promise<{ id: string; paidPaise: number; balancePaise: number; status: string; updatedAt: string }> {
-  return api(`/invoices/${invoiceId}/payments`, { method: 'POST', body: data })
+  return api(`/invoices/${invoiceId}/payments`, { method: 'POST', body: { ...data, invoiceId } })
 }
 
 export async function getPatientOutstanding(patientId: string): Promise<{ patientId: string; outstandingPaise: number }> {

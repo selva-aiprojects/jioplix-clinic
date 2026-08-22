@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   Clock, Plus, ChevronLeft, ChevronRight,
   CheckCircle2, XCircle, Timer, Stethoscope,
   CalendarDays, Activity,
 } from 'lucide-react'
 import { PageHeader, StatCard, Button } from '../components/ui'
-import { listAppointments } from '../lib/api'
+import { listAppointments, updateAppointmentStatus, createEncounter } from '../lib/api'
 import type { Appointment } from '../lib/api'
 
 const hours = Array.from({ length: 12 }, (_, i) => `${i + 8}:00`)
@@ -44,10 +45,13 @@ function initialsOf(fullName: string): string {
 }
 
 export default function Appointments() {
+  const navigate = useNavigate()
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [view, setView] = useState<'list' | 'calendar'>('list')
   const [selectedDoctor, setSelectedDoctor] = useState('All Doctors')
   const [loading, setLoading] = useState(true)
+  const [actionError, setActionError] = useState<string | null>(null)
+  const [busyId, setBusyId] = useState<string | null>(null)
   const today = new Date().toISOString().slice(0, 10)
 
   useEffect(() => {
@@ -64,7 +68,37 @@ export default function Appointments() {
     }
     load()
     return () => { cancelled = true }
-  }, [])
+  }, [today])
+
+  async function setStatus(appt: Appointment, status: string) {
+    setActionError(null)
+    setBusyId(appt.id)
+    try {
+      await updateAppointmentStatus(appt.id, status)
+      setAppointments(prev => prev.map(a => (a.id === appt.id ? { ...a, status } : a)))
+    } catch (e) {
+      setActionError(e instanceof Error ? e.message : 'UNKNOWN')
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  async function startConsultation(appt: Appointment) {
+    setActionError(null)
+    setBusyId(appt.id)
+    try {
+      try { await updateAppointmentStatus(appt.id, 'in_consultation') } catch { /* already advanced */ }
+      const enc = await createEncounter({
+        patientId: appt.patientId,
+        doctorId: appt.doctorId,
+        appointmentId: appt.id,
+      })
+      navigate(`/encounters/${enc.id}`)
+    } catch (e) {
+      setActionError(e instanceof Error ? e.message : 'UNKNOWN')
+      setBusyId(null)
+    }
+  }
 
   const filtered = selectedDoctor === 'All Doctors'
     ? appointments
@@ -89,6 +123,13 @@ export default function Appointments() {
           </Button>
         }
       />
+
+      {actionError && (
+        <div className="rounded-xl px-4 py-3 text-[12px] font-medium bg-danger-50 border border-danger-200 text-danger-700">
+          {actionError}
+          <button className="ml-3 underline" onClick={() => setActionError(null)}>dismiss</button>
+        </div>
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -178,16 +219,35 @@ export default function Appointments() {
                           </span>
                         </td>
                         <td className="px-5 py-3 text-right">
-                          {appt.status === 'scheduled' && (
-                            <button className="px-3 py-1.5 rounded-lg bg-primary-50 text-primary-600 text-[12px] font-medium hover:bg-primary-100 transition-colors">
-                              Check In
-                            </button>
-                          )}
-                          {appt.status === 'in_consultation' && (
-                            <button className="px-3 py-1.5 rounded-lg bg-success-50 text-success-600 text-[12px] font-medium hover:bg-success-100 transition-colors">
-                              Complete
-                            </button>
-                          )}
+                          <div className="flex items-center justify-end gap-1.5">
+                            {(appt.status === 'scheduled' || appt.status === 'confirmed' || appt.status === 'waiting') && (
+                              <button
+                                disabled={busyId === appt.id}
+                                onClick={() => setStatus(appt, 'checked_in')}
+                                className="px-3 py-1.5 rounded-lg bg-primary-50 text-primary-600 text-[12px] font-medium hover:bg-primary-100 transition-colors disabled:opacity-50"
+                              >
+                                Check In
+                              </button>
+                            )}
+                            {appt.status === 'checked_in' && (
+                              <button
+                                disabled={busyId === appt.id}
+                                onClick={() => startConsultation(appt)}
+                                className="px-3 py-1.5 rounded-lg bg-accent-50 text-accent-600 text-[12px] font-medium hover:bg-accent-100 transition-colors disabled:opacity-50"
+                              >
+                                Start Consultation
+                              </button>
+                            )}
+                            {appt.status === 'in_consultation' && (
+                              <button
+                                disabled={busyId === appt.id}
+                                onClick={() => setStatus(appt, 'completed')}
+                                className="px-3 py-1.5 rounded-lg bg-success-50 text-success-600 text-[12px] font-medium hover:bg-success-100 transition-colors disabled:opacity-50"
+                              >
+                                Complete
+                              </button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     )
