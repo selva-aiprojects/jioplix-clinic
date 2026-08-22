@@ -1,14 +1,13 @@
 {
   "version": 2,
-  "outputDirectory": "apps/web/dist",
+  "outputDirectory": "dist",
   "builds": [
     {
       "src": "package.json",
       "use": "@vercel/static-build",
       "config": {
-        "distDir": "apps/web/dist",
         "installCommand": "npm install --include=dev",
-        "buildCommand": "mkdir -p apps/web/node_modules/@jioplix && cp -r packages/contracts apps/web/node_modules/@jioplix/contracts && cp -r packages/db apps/web/node_modules/@jioplix/db && cd packages/contracts && npm run build && cd ../db && npm run build && cd apps/web && npm run build"
+        "buildCommand": "mkdir -p apps/web/node_modules/@jioplix && cp -r packages/contracts apps/web/node_modules/@jioplix/contracts && cp -r packages/db apps/web/node_modules/@jioplix/db && cd packages/contracts && npm run build && cd ../db && npm run build && cd apps/web && npm run build && mkdir -p dist && cp -r apps/web/dist/* dist/"
       }
     }
   ],
