@@ -16,6 +16,7 @@ import {
   Warehouse,
   Bandage,
   Puzzle,
+  UserCog,
 } from 'lucide-react'
 import { useAuth } from '../auth/useAuth'
 import BrandLogo from './BrandLogo'
@@ -40,7 +41,7 @@ const navGroups: { title: string; items: NavItem[] }[] = [
   {
     title: 'Overview',
     items: [
-      { to: '/', icon: LayoutDashboard, label: 'Dashboard', color: 'text-primary-600' },
+      { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', color: 'text-primary-600' },
       { to: '/analytics', icon: BarChart3, label: 'Analytics', color: 'text-danger-500' },
     ],
   },
@@ -57,11 +58,12 @@ const navGroups: { title: string; items: NavItem[] }[] = [
   {
     title: 'Add-ons',
     items: [
-      { to: '/pharmacy', icon: Pill, label: 'Pharmacy', color: 'text-info-600', addon: true, permission: 'pharmacy:*' },
-      { to: '/laboratory', icon: FlaskConical, label: 'Laboratory', color: 'text-danger-500', addon: true, permission: 'lab:*' },
-      { to: '/inventory', icon: Warehouse, label: 'Inventory', color: 'text-accent-600', addon: true, permission: 'inventory:read' },
-      { to: '/procedures', icon: Bandage, label: 'Procedures', color: 'text-success-600', addon: true, permission: 'procedures:*' },
+      { to: '/pharmacy', icon: Pill, label: 'Pharmacy', color: 'text-info-600', addon: true },
+      { to: '/laboratory', icon: FlaskConical, label: 'Laboratory', color: 'text-danger-500', addon: true },
+      { to: '/inventory', icon: Warehouse, label: 'Inventory', color: 'text-accent-600', addon: true },
+      { to: '/procedures', icon: Bandage, label: 'Procedures', color: 'text-success-600', addon: true },
       { to: '/addons', icon: Puzzle, label: 'Plans & Add-ons', color: 'text-primary-600' },
+      { to: '/users', icon: UserCog, label: 'User Management', color: 'text-primary-600' },
     ],
   },
 ]

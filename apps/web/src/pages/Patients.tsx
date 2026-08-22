@@ -191,9 +191,18 @@ export default function Patients() {
     const name = `${p.firstName} ${p.lastName}`.toLowerCase()
     const mrn = p.mrn.toLowerCase()
     const phone = p.phone.toLowerCase()
-    return name.includes(search.toLowerCase()) ||
+    const matchesSearch = name.includes(search.toLowerCase()) ||
       mrn.includes(search.toLowerCase()) ||
       phone.includes(search.toLowerCase())
+    if (!matchesSearch) return false
+
+    if (activeTab === 'Recent') {
+      const recentCutoff = Date.now() - 30 * 24 * 60 * 60 * 1000
+      return new Date(p.createdAt).getTime() >= recentCutoff
+    }
+    if (activeTab === 'Follow-up Due') return Boolean(p.email)
+    if (activeTab === 'Chronic') return Boolean(p.bloodGroup)
+    return true
   })
 
   return (

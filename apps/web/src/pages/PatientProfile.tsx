@@ -95,9 +95,12 @@ export default function PatientProfile() {
           <Button variant="secondary">
             <Printer className="w-4 h-4" /> Print
           </Button>
-          <Button>
+          <Link
+            to={`/appointments?new=1&patientId=${encodeURIComponent(p.id)}`}
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary-600 px-4 py-2 text-[13px] font-semibold text-white shadow-healthcare transition-all hover:bg-primary-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40"
+          >
             <Calendar className="w-4 h-4" /> Book Appointment
-          </Button>
+          </Link>
         </div>
       </div>
 

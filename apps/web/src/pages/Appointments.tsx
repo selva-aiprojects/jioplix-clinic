@@ -171,6 +171,8 @@ export default function Appointments() {
   useEffect(() => {
     if (searchParams.get('new') === '1') {
       setShowNewAppt(true)
+      const patientId = searchParams.get('patientId')
+      if (patientId) setForm(prev => ({ ...prev, patientId }))
       setSearchParams({}, { replace: true })
     }
   }, [searchParams, setSearchParams])

@@ -41,7 +41,7 @@ CREATE TABLE IF NOT EXISTS public.platform_users (
 
 INSERT INTO public.plans (code, name, monthly_price_paise, addons) VALUES
   ('starter', 'Starter', 69900, '[]'::jsonb),
-  ('professional', 'Professional', 199900, '["pharmacy","laboratory","inventory"]'::jsonb),
+  ('professional', 'Professional', 199900, '["pharmacy","laboratory","inventory","procedures"]'::jsonb),
   ('clinic', 'Clinic', 399900, '["pharmacy","laboratory","inventory","procedures"]'::jsonb),
   ('enterprise', 'Enterprise', 0, '["pharmacy","laboratory","inventory","procedures","multi_branch"]'::jsonb)
 ON CONFLICT (code) DO NOTHING;

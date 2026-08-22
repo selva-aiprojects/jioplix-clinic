@@ -33,7 +33,7 @@ const operationalAddons: Module[] = [
   { name: 'Pharmacy', desc: 'In-house dispensing counter with prescription queue', icon: Pill, price: '₹999/mo', enabled: true },
   { name: 'Laboratory', desc: 'In-house or external lab — orders to reviewed reports', icon: FlaskConical, price: '₹1,499/mo', enabled: true },
   { name: 'Inventory', desc: 'Shared stock engine for medicines, consumables & reagents', icon: Warehouse, price: '₹499/mo', enabled: true },
-  { name: 'Procedures', desc: 'Record procedures, consume stock, bill automatically', icon: Bandage, price: '₹499/mo' },
+  { name: 'Procedures', desc: 'Record procedures, consume stock, bill automatically', icon: Bandage, price: '₹499/mo', enabled: true },
   { name: 'Advanced Billing', desc: 'Memberships, health packages & TPA support', icon: CreditCard, price: '₹799/mo' },
   { name: 'Multi-Branch', desc: 'Central admin, cross-branch history & consolidated reports', icon: Building2, price: '₹1,999/mo' },
 ]

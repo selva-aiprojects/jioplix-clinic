@@ -55,7 +55,7 @@ export default function Login() {
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const from = (location.state as { from?: string } | null)?.from ?? '/'
+  const from = (location.state as { from?: string } | null)?.from ?? '/dashboard'
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()

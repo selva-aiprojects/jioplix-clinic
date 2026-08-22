@@ -112,22 +112,38 @@ export default function Procedures() {
 
   useEffect(() => {
     let cancelled = false
-    Promise.all([
+    Promise.allSettled([
       listProcedureOrders(new Date().toISOString().slice(0, 10)),
-      listPatients().catch(() => [] as Patient[]),
-      listDoctors().catch(() => [] as DoctorOption[]),
+      listPatients(),
+      listDoctors(),
     ])
-      .then(([orderData, patientData, doctorData]) => {
+      .then(([orderResult, patientResult, doctorResult]) => {
         if (cancelled) return
-        setOrders(orderData)
-        setPatients(patientData)
-        setDoctors(doctorData)
-        if (doctorData[0]) setDoctorId(doctorData[0].id)
+        if (orderResult.status === 'fulfilled') setOrders(orderResult.value)
+        else setPageError(describeApiError(orderResult.reason))
+        if (patientResult.status === 'fulfilled') setPatients(patientResult.value)
+        if (doctorResult.status === 'fulfilled') {
+          setDoctors(doctorResult.value)
+          if (doctorResult.value[0]) setDoctorId(doctorResult.value[0].id)
+        }
       })
-      .catch((e) => { if (!cancelled) setPageError(describeApiError(e)) })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
   }, [])
+
+  useEffect(() => {
+    if (!showNew) return
+    let cancelled = false
+    Promise.allSettled([listPatients(), listDoctors()]).then(([patientResult, doctorResult]) => {
+      if (cancelled) return
+      if (patientResult.status === 'fulfilled') setPatients(patientResult.value)
+      if (doctorResult.status === 'fulfilled') {
+        setDoctors(doctorResult.value)
+        if (!doctorId && doctorResult.value[0]) setDoctorId(doctorResult.value[0].id)
+      }
+    })
+    return () => { cancelled = true }
+  }, [showNew, doctorId])
 
   useEffect(() => {
     if (searchParams.get('new') === '1') {

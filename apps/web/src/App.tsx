@@ -16,6 +16,8 @@ import Laboratory from './pages/Laboratory'
 import Inventory from './pages/Inventory'
 import Procedures from './pages/Procedures'
 import Addons from './pages/Addons'
+import Landing from './pages/Landing'
+import UserManagement from './pages/UserManagement'
 
 function Splash() {
   return (
@@ -42,7 +44,7 @@ function AppRoutes() {
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route element={<ProtectedRoute />}>
-        <Route path="/" element={<Dashboard />} />
+        <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/patients" element={<Patients />} />
         <Route path="/patients/:id" element={<PatientProfile />} />
         <Route path="/appointments" element={<Appointments />} />
@@ -56,7 +58,9 @@ function AppRoutes() {
         <Route path="/inventory" element={<Inventory />} />
         <Route path="/procedures" element={<Procedures />} />
         <Route path="/addons" element={<Addons />} />
+        <Route path="/users" element={<UserManagement />} />
       </Route>
+      <Route path="/" element={<Landing />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )
