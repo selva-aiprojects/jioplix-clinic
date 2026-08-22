@@ -6,8 +6,8 @@
       "use": "@vercel/static-build",
       "config": {
         "distDir": "apps/web/dist",
-        "installCommand": "npm install --include=dev",
-        "buildCommand": "npm run build -w @jioplix/web"
+        "installCommand": "npm install --include=dev --ignore-scripts",
+        "buildCommand": "cd packages/contracts && npm run build && cd ../db && npm run build && cd apps/web && npm run build"
       }
     }
   ],
