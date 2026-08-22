@@ -9,6 +9,9 @@ export const PERMISSIONS_KEY = 'requiredPermissions'
 export const RequirePermissions = (...permissions: string[]) =>
   SetMetadata(PERMISSIONS_KEY, permissions)
 
+export const ROLES_KEY = 'requiredRoles'
+export const RequireRole = (...roles: string[]) => SetMetadata(ROLES_KEY, roles)
+
 export const CurrentAuth = createParamDecorator(
   (_data: unknown, ctx: ExecutionContext): AuthContext => ctx.switchToHttp().getRequest().auth,
 )

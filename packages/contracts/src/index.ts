@@ -145,4 +145,168 @@ export function hasAllPermissions(granted: string[], required: string[]): boolea
   return required.every((r) => permissionMatches(granted, r))
 }
 
+export const encounterStatusSchema = z.object({
+  status: z.enum(['draft', 'in_progress', 'locked', 'cancelled']).optional(),
+})
+export type EncounterStatus = z.infer<typeof encounterStatusSchema>['status']
+
+export const encounterCreateSchema = z.object({
+  appointmentId: z.string().uuid().optional(),
+  patientId: z.string().uuid(),
+  doctorId: z.string().uuid(),
+  chiefComplaint: z.string().max(2000).optional(),
+  historyPresentIllness: z.string().max(4000).optional(),
+  examinationFindings: z.string().max(4000).optional(),
+  clinicalNotes: z.string().max(4000).optional(),
+  followUpDate: z.string().date().optional(),
+  followUpNotes: z.string().max(1000).optional(),
+})
+export type EncounterCreate = z.infer<typeof encounterCreateSchema>
+
+export const encounterUpdateSchema = encounterCreateSchema.partial()
+export type EncounterUpdate = z.infer<typeof encounterUpdateSchema>
+
+export const encounterSchema = encounterCreateSchema.extend({
+  id: z.string().uuid(),
+  branchId: z.string().uuid(),
+  encounterDate: z.string().date(),
+  isLocked: z.boolean(),
+  lockedAt: z.string().datetime().optional(),
+  lockedBy: z.string().uuid().optional(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+})
+export type Encounter = z.infer<typeof encounterSchema>
+
+export const vitalsCreateSchema = z.object({
+  bpSystolic: z.number().int().positive().optional(),
+  bpDiastolic: z.number().int().positive().optional(),
+  pulse: z.number().int().positive().optional(),
+  temperatureC: z.number().positive().optional(),
+  spo2: z.number().int().min(0).max(100).optional(),
+  weightKg: z.number().positive().optional(),
+  heightCm: z.number().positive().optional(),
+})
+export type VitalsCreate = z.infer<typeof vitalsCreateSchema>
+
+export const vitalsSchema = vitalsCreateSchema.extend({
+  id: z.string().uuid(),
+  encounterId: z.string().uuid(),
+  bmi: z.number().optional(),
+  recordedAt: z.string().datetime(),
+  recordedBy: z.string().uuid(),
+})
+export type Vitals = z.infer<typeof vitalsSchema>
+
+export const diagnosisCreateSchema = z.object({
+  icd10Code: z.string().min(2).max(10),
+  icd10Name: z.string().min(1).max(200),
+  type: z.enum(['primary', 'secondary', 'differential']).default('primary'),
+})
+export type DiagnosisCreate = z.infer<typeof diagnosisCreateSchema>
+
+export const diagnosisSchema = diagnosisCreateSchema.extend({
+  id: z.string().uuid(),
+  encounterId: z.string().uuid(),
+  createdAt: z.string(),
+})
+export type Diagnosis = z.infer<typeof diagnosisSchema>
+
+export const prescriptionCreateSchema = z.object({
+  encounterId: z.string().uuid(),
+  patientId: z.string().uuid(),
+  notes: z.string().max(2000).optional(),
+})
+export type PrescriptionCreate = z.infer<typeof prescriptionCreateSchema>
+
+export const prescriptionStatusSchema = z.object({
+  status: z.enum(['draft', 'issued', 'dispensed', 'cancelled']),
+})
+export type PrescriptionStatus = z.infer<typeof prescriptionStatusSchema>['status']
+
+export const prescriptionItemCreateSchema = z.object({
+  drugName: z.string().min(1).max(200),
+  genericName: z.string().max(200).optional(),
+  strength: z.string().max(50).optional(),
+  form: z.enum(['tablet', 'capsule', 'syrup', 'injection', 'cream', 'drops', 'other']).optional(),
+  dosage: z.string().min(1).max(100),
+  frequency: z.string().min(1).max(100),
+  route: z.enum(['oral', 'topical', 'injection', 'inhaled', 'other']).optional(),
+  durationDays: z.number().int().positive().optional(),
+  quantity: z.number().int().positive().optional(),
+  instructions: z.string().max(500).optional(),
+})
+export type PrescriptionItemCreate = z.infer<typeof prescriptionItemCreateSchema>
+
+export const prescriptionSchema = prescriptionCreateSchema.extend({
+  id: z.string().uuid(),
+  doctorId: z.string().uuid(),
+  status: z.enum(['draft', 'issued', 'dispensed', 'cancelled']),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+  items: z.array(prescriptionItemCreateSchema.extend({
+    id: z.string().uuid(),
+    prescriptionId: z.string().uuid(),
+    sequence: z.number().int().default(0),
+  })).optional(),
+})
+export type Prescription = z.infer<typeof prescriptionSchema>
+
+export const invoiceCreateSchema = z.object({
+  encounterId: z.string().uuid().optional(),
+  appointmentId: z.string().uuid().optional(),
+  patientId: z.string().uuid(),
+  lines: z.array(z.object({
+    itemType: z.enum(['consultation', 'procedure', 'pharmacy', 'lab', 'other']),
+    itemName: z.string().min(1).max(200),
+    hsnCode: z.string().max(20).optional(),
+    quantity: z.number().int().min(1).default(1),
+    unitPricePaise: z.number().int().min(0),
+    cgstRate: z.number().min(0).max(100).default(0),
+    sgstRate: z.number().min(0).max(100).default(0),
+    igstRate: z.number().min(0).max(100).default(0),
+  })).min(1),
+  discountPaise: z.number().int().min(0).default(0),
+})
+export type InvoiceCreate = z.infer<typeof invoiceCreateSchema>
+
+export const invoiceSchema = z.object({
+  id: z.string().uuid(),
+  invoiceNo: z.string(),
+  encounterId: z.string().uuid().optional(),
+  appointmentId: z.string().uuid().optional(),
+  patientId: z.string().uuid(),
+  branchId: z.string().uuid(),
+  subTotalPaise: z.number().int(),
+  discountPaise: z.number().int(),
+  cgstPaise: z.number().int(),
+  sgstPaise: z.number().int(),
+  igstPaise: z.number().int(),
+  roundOffPaise: z.number().int(),
+  totalPaise: z.number().int(),
+  paidPaise: z.number().int(),
+  balancePaise: z.number().int(),
+  status: z.enum(['draft', 'issued', 'partial', 'paid', 'void', 'refunded']),
+  issuedAt: z.string().datetime().optional(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+})
+export type Invoice = z.infer<typeof invoiceSchema>
+
+export const paymentCreateSchema = z.object({
+  invoiceId: z.string().uuid(),
+  amountPaise: z.number().int().min(1),
+  mode: z.enum(['cash', 'upi', 'card', 'online', 'credit']),
+  reference: z.string().max(100).optional(),
+  notes: z.string().max(500).optional(),
+})
+export type PaymentCreate = z.infer<typeof paymentCreateSchema>
+
+export const paymentSchema = paymentCreateSchema.extend({
+  id: z.string().uuid(),
+  receivedBy: z.string().uuid(),
+  receivedAt: z.string().datetime(),
+})
+export type Payment = z.infer<typeof paymentSchema>
+
 export { uuidv7 as newId }

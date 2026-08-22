@@ -216,3 +216,257 @@ export async function listAppointments(date: string, doctorId?: string): Promise
 export async function listQueue(date: string): Promise<{ tokens: QueueToken[]; waiting: number }> {
   return api<{ tokens: QueueToken[]; waiting: number }>(`/queue?date=${encodeURIComponent(date)}`)
 }
+
+export interface Encounter {
+  id: string
+  patientId: string
+  patientName: string
+  appointmentId?: string
+  doctorId: string
+  doctorName: string
+  encounterDate: string
+  chiefComplaint?: string
+  historyPresentIllness?: string
+  examinationFindings?: string
+  clinicalNotes?: string
+  followUpDate?: string
+  followUpNotes?: string
+  isLocked: boolean
+  lockedAt?: string
+  lockedBy?: string
+  vitals?: Vitals | null
+  diagnoses: Diagnosis[]
+  createdAt: string
+  updatedAt: string
+}
+
+export interface Vitals {
+  id: string
+  encounterId: string
+  bpSystolic?: number
+  bpDiastolic?: number
+  pulse?: number
+  temperatureC?: number
+  spo2?: number
+  weightKg?: number
+  heightCm?: number
+  bmi?: number
+  recordedAt: string
+  recordedBy: string
+}
+
+export interface Diagnosis {
+  id: string
+  encounterId: string
+  icd10Code: string
+  icd10Name: string
+  type: string
+  createdAt: string
+}
+
+export interface Prescription {
+  id: string
+  encounterId: string
+  patientId: string
+  patientName: string
+  doctorId: string
+  doctorName: string
+  status: string
+  notes?: string
+  items: PrescriptionItem[]
+  createdAt: string
+  updatedAt: string
+}
+
+export interface PrescriptionItem {
+  id: string
+  prescriptionId: string
+  drugName: string
+  genericName?: string
+  strength?: string
+  form?: string
+  dosage: string
+  frequency: string
+  route?: string
+  durationDays?: number
+  quantity?: number
+  instructions?: string
+  sequence: number
+}
+
+export interface Invoice {
+  id: string
+  invoiceNo: string
+  encounterId?: string
+  appointmentId?: string
+  patientId: string
+  patientName: string
+  branchId: string
+  subTotalPaise: number
+  discountPaise: number
+  cgstPaise: number
+  sgstPaise: number
+  igstPaise: number
+  roundOffPaise: number
+  totalPaise: number
+  paidPaise: number
+  balancePaise: number
+  status: string
+  issuedAt?: string
+  lines: InvoiceLine[]
+  payments: Payment[]
+  createdAt: string
+  updatedAt: string
+}
+
+export interface InvoiceLine {
+  id: string
+  itemType: string
+  itemName: string
+  hsnCode?: string
+  quantity: number
+  unitPricePaise: number
+  lineTotalPaise: number
+  cgstRate: number
+  sgstRate: number
+  igstRate: number
+}
+
+export interface Payment {
+  id: string
+  invoiceId: string
+  amountPaise: number
+  mode: string
+  reference?: string
+  receivedBy: string
+  receivedAt: string
+  notes?: string
+}
+
+export async function createEncounter(data: {
+  patientId: string
+  doctorId: string
+  appointmentId?: string
+  chiefComplaint?: string
+  historyPresentIllness?: string
+  examinationFindings?: string
+  clinicalNotes?: string
+  followUpDate?: string
+  followUpNotes?: string
+}): Promise<Encounter> {
+  return api<Encounter>('/encounters', { method: 'POST', body: data })
+}
+
+export async function getEncounter(id: string): Promise<Encounter> {
+  return api<Encounter>(`/encounters/${id}`)
+}
+
+export async function updateEncounter(id: string, data: {
+  chiefComplaint?: string
+  historyPresentIllness?: string
+  examinationFindings?: string
+  clinicalNotes?: string
+  followUpDate?: string
+  followUpNotes?: string
+}): Promise<{ id: string; updatedAt: string }> {
+  return api(`/encounters/${id}`, { method: 'PATCH', body: data })
+}
+
+export async function addVitals(encounterId: string, data: {
+  bpSystolic?: number
+  bpDiastolic?: number
+  pulse?: number
+  temperatureC?: number
+  spo2?: number
+  weightKg?: number
+  heightCm?: number
+}): Promise<Vitals> {
+  return api<Vitals>(`/encounters/${encounterId}/vitals`, { method: 'POST', body: data })
+}
+
+export async function addDiagnosis(encounterId: string, data: {
+  icd10Code: string
+  icd10Name: string
+  type?: 'primary' | 'secondary' | 'differential'
+}): Promise<Diagnosis> {
+  return api<Diagnosis>(`/encounters/${encounterId}/diagnoses`, { method: 'POST', body: data })
+}
+
+export async function lockEncounter(id: string): Promise<{ id: string; isLocked: boolean; lockedAt?: string }> {
+  return api(`/encounters/${id}/lock`, { method: 'POST' })
+}
+
+export async function createPrescription(data: {
+  encounterId: string
+  patientId: string
+  notes?: string
+}): Promise<Prescription> {
+  return api<Prescription>('/prescriptions', { method: 'POST', body: data })
+}
+
+export async function getPrescription(id: string): Promise<Prescription> {
+  return api<Prescription>(`/prescriptions/${id}`)
+}
+
+export async function updatePrescriptionStatus(id: string, status: string): Promise<{ id: string; status: string; updatedAt: string }> {
+  return api(`/prescriptions/${id}/status`, { method: 'PATCH', body: { status } })
+}
+
+export async function addPrescriptionItem(prescriptionId: string, data: {
+  drugName: string
+  genericName?: string
+  strength?: string
+  form?: string
+  dosage: string
+  frequency: string
+  route?: string
+  durationDays?: number
+  quantity?: number
+  instructions?: string
+}): Promise<PrescriptionItem> {
+  return api<PrescriptionItem>(`/prescriptions/${prescriptionId}/items`, { method: 'POST', body: data })
+}
+
+export async function createInvoice(data: {
+  patientId: string
+  encounterId?: string
+  appointmentId?: string
+  lines: Array<{
+    itemType: 'consultation' | 'procedure' | 'pharmacy' | 'lab' | 'other'
+    itemName: string
+    hsnCode?: string
+    quantity?: number
+    unitPricePaise: number
+    cgstRate?: number
+    sgstRate?: number
+    igstRate?: number
+  }>
+  discountPaise?: number
+}): Promise<Invoice> {
+  return api<Invoice>('/invoices', { method: 'POST', body: data })
+}
+
+export async function getInvoice(id: string): Promise<Invoice> {
+  return api<Invoice>(`/invoices/${id}`)
+}
+
+export async function listInvoices(filters?: { patientId?: string; status?: string }): Promise<Invoice[]> {
+  const qs = new URLSearchParams()
+  if (filters?.patientId) qs.set('patientId', filters.patientId)
+  if (filters?.status) qs.set('status', filters.status)
+  const q = qs.toString()
+  return api<Invoice[]>(`/invoices${q ? `?${q}` : ''}`)
+}
+
+export async function addPayment(invoiceId: string, data: {
+  amountPaise: number
+  mode: 'cash' | 'upi' | 'card' | 'online' | 'credit'
+  reference?: string
+  notes?: string
+}): Promise<{ id: string; paidPaise: number; balancePaise: number; status: string; updatedAt: string }> {
+  return api(`/invoices/${invoiceId}/payments`, { method: 'POST', body: data })
+}
+
+export async function getPatientOutstanding(patientId: string): Promise<{ patientId: string; outstandingPaise: number }> {
+  return api(`/invoices/patient/${patientId}/outstanding`)
+}

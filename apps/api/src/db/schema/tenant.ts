@@ -206,3 +206,168 @@ export const auditLogs = pgTable(
   },
   (t) => [index('audit_logs_entity_idx').on(t.entity, t.entityId), index('audit_logs_created_idx').on(t.createdAt)],
 )
+
+export const encounters = pgTable(
+  'encounters',
+  {
+    id: uuid('id').primaryKey(),
+    patientId: uuid('patient_id').notNull().references(() => patients.id),
+    appointmentId: uuid('appointment_id').references(() => appointments.id),
+    doctorId: uuid('doctor_id').notNull().references(() => users.id),
+    branchId: uuid('branch_id').notNull().references(() => branches.id),
+    encounterDate: date('encounter_date').notNull().defaultNow(),
+    chiefComplaint: text('chief_complaint'),
+    historyPresentIllness: text('history_present_illness'),
+    examinationFindings: text('examination_findings'),
+    clinicalNotes: text('clinical_notes'),
+    followUpDate: date('follow_up_date'),
+    followUpNotes: text('follow_up_notes'),
+    isLocked: boolean('is_locked').notNull().default(false),
+    lockedAt: timestamp('locked_at', { withTimezone: true }),
+    lockedBy: uuid('locked_by').references(() => users.id),
+    createdBy: uuid('created_by').notNull().references(() => users.id),
+    updatedBy: uuid('updated_by').notNull().references(() => users.id),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('encounters_patient_idx').on(t.patientId),
+    index('encounters_doctor_date_idx').on(t.doctorId, t.encounterDate),
+    index('encounters_appointment_idx').on(t.appointmentId),
+  ],
+)
+
+export const vitals = pgTable(
+  'vitals',
+  {
+    id: uuid('id').primaryKey(),
+    encounterId: uuid('encounter_id').notNull().references(() => encounters.id, { onDelete: 'cascade' }),
+    bpSystolic: integer('bp_systolic'),
+    bpDiastolic: integer('bp_diastolic'),
+    pulse: integer('pulse'),
+    temperatureC: numeric('temperature_c', { precision: 4, scale: 1 }),
+    spo2: integer('spo2'),
+    weightKg: numeric('weight_kg', { precision: 5, scale: 1 }),
+    heightCm: numeric('height_cm', { precision: 5, scale: 1 }),
+    bmi: numeric('bmi', { precision: 4, scale: 1 }),
+    recordedAt: timestamp('recorded_at', { withTimezone: true }).notNull().defaultNow(),
+    recordedBy: uuid('recorded_by').notNull().references(() => users.id),
+  },
+  (t) => [index('vitals_encounter_idx').on(t.encounterId)],
+)
+
+export const encounterDiagnoses = pgTable(
+  'encounter_diagnoses',
+  {
+    id: uuid('id').primaryKey(),
+    encounterId: uuid('encounter_id').notNull().references(() => encounters.id, { onDelete: 'cascade' }),
+    icd10Code: text('icd10_code').notNull(),
+    icd10Name: text('icd10_name').notNull(),
+    type: text('type', { enum: ['primary', 'secondary', 'differential']).notNull().default('primary'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('encounter_diagnoses_encounter_idx').on(t.encounterId)],
+)
+
+export const prescriptions = pgTable(
+  'prescriptions',
+  {
+    id: uuid('id').primaryKey(),
+    encounterId: uuid('encounter_id').notNull().references(() => encounters.id),
+    patientId: uuid('patient_id').notNull().references(() => patients.id),
+    doctorId: uuid('doctor_id').notNull().references(() => users.id),
+    status: text('status', { enum: ['draft', 'issued', 'dispensed', 'cancelled']).notNull().default('draft'),
+    notes: text('notes'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('prescriptions_encounter_idx').on(t.encounterId),
+    index('prescriptions_patient_idx').on(t.patientId),
+  ],
+)
+
+export const prescriptionItems = pgTable(
+  'prescription_items',
+  {
+    id: uuid('id').primaryKey(),
+    prescriptionId: uuid('prescription_id').notNull().references(() => prescriptions.id, { onDelete: 'cascade' }),
+    drugName: text('drug_name').notNull(),
+    genericName: text('generic_name'),
+    strength: text('strength'),
+    form: text('form', { enum: ['tablet', 'capsule', 'syrup', 'injection', 'cream', 'drops', 'other'] }),
+    dosage: text('dosage').notNull(),
+    frequency: text('frequency').notNull(),
+    route: text('route', { enum: ['oral', 'topical', 'injection', 'inhaled', 'other'] }),
+    durationDays: integer('duration_days'),
+    quantity: integer('quantity'),
+    instructions: text('instructions'),
+    sequence: integer('sequence').notNull().default(0),
+  },
+  (t) => [index('prescription_items_prescription_idx').on(t.prescriptionId)],
+)
+
+export const invoices = pgTable(
+  'invoices',
+  {
+    id: uuid('id').primaryKey(),
+    invoiceNo: text('invoice_no').notNull().unique(),
+    encounterId: uuid('encounter_id').references(() => encounters.id),
+    appointmentId: uuid('appointment_id').references(() => appointments.id),
+    patientId: uuid('patient_id').notNull().references(() => patients.id),
+    branchId: uuid('branch_id').notNull().references(() => branches.id),
+    subTotalPaise: bigint('sub_total_paise', { mode: 'number' }).notNull().default(0),
+    discountPaise: bigint('discount_paise', { mode: 'number' }).notNull().default(0),
+    cgstPaise: bigint('cgst_paise', { mode: 'number' }).notNull().default(0),
+    sgstPaise: bigint('sgst_paise', { mode: 'number' }).notNull().default(0),
+    igstPaise: bigint('igst_paise', { mode: 'number' }).notNull().default(0),
+    roundOffPaise: bigint('round_off_paise', { mode: 'number' }).notNull().default(0),
+    totalPaise: bigint('total_paise', { mode: 'number' }).notNull().default(0),
+    paidPaise: bigint('paid_paise', { mode: 'number' }).notNull().default(0),
+    balancePaise: bigint('balance_paise', { mode: 'number' }).notNull().default(0),
+    status: text('status', { enum: ['draft', 'issued', 'partial', 'paid', 'void', 'refunded']).notNull().default('draft'),
+    issuedAt: timestamp('issued_at', { withTimezone: true }),
+    createdBy: uuid('created_by').notNull().references(() => users.id),
+    updatedBy: uuid('updated_by').notNull().references(() => users.id),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('invoices_patient_idx').on(t.patientId),
+    index('invoices_branch_date_idx').on(t.branchId, t.createdAt),
+  ],
+)
+
+export const invoiceLines = pgTable(
+  'invoice_lines',
+  {
+    id: uuid('id').primaryKey(),
+    invoiceId: uuid('invoice_id').notNull().references(() => invoices.id, { onDelete: 'cascade' }),
+    itemType: text('item_type', { enum: ['consultation', 'procedure', 'pharmacy', 'lab', 'other']).notNull(),
+    itemName: text('item_name').notNull(),
+    hsnCode: text('hsn_code'),
+    quantity: integer('quantity').notNull().default(1),
+    unitPricePaise: bigint('unit_price_paise', { mode: 'number' }).notNull(),
+    lineTotalPaise: bigint('line_total_paise', { mode: 'number' }).notNull(),
+    cgstRate: numeric('cgst_rate', { precision: 5, scale: 2 }).default(0),
+    sgstRate: numeric('sgst_rate', { precision: 5, scale: 2 }).default(0),
+    igstRate: numeric('igst_rate', { precision: 5, scale: 2 }).default(0),
+    sequence: integer('sequence').notNull().default(0),
+  },
+  (t) => [index('invoice_lines_invoice_idx').on(t.invoiceId)],
+)
+
+export const payments = pgTable(
+  'payments',
+  {
+    id: uuid('id').primaryKey(),
+    invoiceId: uuid('invoice_id').notNull().references(() => invoices.id),
+    amountPaise: bigint('amount_paise', { mode: 'number' }).notNull(),
+    mode: text('mode', { enum: ['cash', 'upi', 'card', 'online', 'credit']).notNull(),
+    reference: text('reference'),
+    receivedBy: uuid('received_by').notNull().references(() => users.id),
+    receivedAt: timestamp('received_at', { withTimezone: true }).notNull().defaultNow(),
+    notes: text('notes'),
+  },
+  (t) => [index('payments_invoice_idx').on(t.invoiceId)],
+)

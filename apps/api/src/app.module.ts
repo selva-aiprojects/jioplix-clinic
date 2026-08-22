@@ -11,6 +11,10 @@ import { AuthController } from './auth/auth.controller.js'
 import { AuthService } from './auth/auth.service.js'
 import { JwtAuthGuard } from './auth/jwt-auth.guard.js'
 import { PermissionsGuard } from './auth/permissions.guard.js'
+import { EncountersModule } from './encounters/encounters.module.js'
+import { PrescriptionsModule } from './prescriptions/prescriptions.module.js'
+import { BillingModule } from './billing/billing.module.js'
+import { AuditModule } from './common/audit.module.js'
 
 @Module({
   controllers: [HealthController, PatientsController, AppointmentsController, AuthController],
@@ -23,5 +27,6 @@ import { PermissionsGuard } from './auth/permissions.guard.js'
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: PermissionsGuard },
   ],
+  imports: [EncountersModule, PrescriptionsModule, BillingModule, AuditModule],
 })
 export class AppModule {}
