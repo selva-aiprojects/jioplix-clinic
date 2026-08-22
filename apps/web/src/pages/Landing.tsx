@@ -32,18 +32,18 @@ const plans = [
 ]
 
 const specialties = [
-  { icon: Stethoscope, name: 'General Practice', text: 'Flexible consultations, chronic care, prescriptions, and follow-ups for everyday clinical volume.', tone: 'bg-primary-50 text-primary-600', image: 'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&w=900&q=85' },
-  { icon: Baby, name: 'Pediatrics', text: 'Keep vaccination schedules, growth conversations, and family communication close to the patient story.', tone: 'bg-accent-50 text-accent-600', image: 'https://images.unsplash.com/photo-1544126592-807daa215a9b?auto=format&fit=crop&w=900&q=85' },
-  { icon: ScanFace, name: 'Dental', text: 'Give teams a focused workflow for treatment planning, procedures, and repeat visits.', tone: 'bg-info-50 text-info-600', image: 'https://images.unsplash.com/photo-1606811971618-4486d14f3f99?auto=format&fit=crop&w=900&q=85' },
-  { icon: Fingerprint, name: 'Dermatology', text: 'Organize image-led consultations, lesion tracking, treatment notes, and review timelines.', tone: 'bg-danger-50 text-danger-600', image: 'https://images.unsplash.com/photo-1616394584738-fc6e612e0b9?auto=format&fit=crop&w=900&q=85' },
-  { icon: HeartHandshake, name: 'Gynecology', text: 'Support sensitive, longitudinal care with structured history, follow-ups, and privacy-aware access.', tone: 'bg-warning-50 text-warning-600', image: 'https://images.unsplash.com/photo-1555252333-9f8e92e65df9?auto=format&fit=crop&w=900&q=85' },
+  { icon: Stethoscope, name: 'General Practice', text: 'Flexible consultations, chronic care, prescriptions, and follow-ups for everyday clinical volume.', tone: 'bg-primary-50 text-primary-600', image: '/specialty-general.jpg' },
+  { icon: Baby, name: 'Pediatrics', text: 'Keep vaccination schedules, growth conversations, and family communication close to the patient story.', tone: 'bg-accent-50 text-accent-600', image: '/specialty-pediatrics.jpg' },
+  { icon: ScanFace, name: 'Dental', text: 'Give teams a focused workflow for treatment planning, procedures, and repeat visits.', tone: 'bg-info-50 text-info-600', image: '/specialty-dental.jpg' },
+  { icon: Fingerprint, name: 'Dermatology', text: 'Organize image-led consultations, lesion tracking, treatment notes, and review timelines.', tone: 'bg-danger-50 text-danger-600', image: '/specialty-dermatology.jpg' },
+  { icon: HeartHandshake, name: 'Gynecology', text: 'Support sensitive, longitudinal care with structured history, follow-ups, and privacy-aware access.', tone: 'bg-warning-50 text-warning-600', image: '/specialty-gynecology.jpg' },
 ]
 
 export default function Landing() {
   return (
     <main className="min-h-screen overflow-hidden bg-[#f7fbff] text-surface-800">
       <nav className="mx-auto flex max-w-7xl items-center justify-between px-5 py-5 lg:px-8">
-        <BrandLogo size="md" />
+        <BrandLogo size="lg" />
         <div className="flex items-center gap-3">
           <Link to="/login" className="hidden px-3 py-2 text-[13px] font-semibold text-surface-600 hover:text-primary-700 sm:block">Sign in</Link>
           <Link to="/login" className="inline-flex items-center gap-2 rounded-xl bg-primary-600 px-4 py-2.5 text-[13px] font-bold text-white shadow-healthcare hover:bg-primary-700">
