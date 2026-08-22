@@ -372,3 +372,105 @@ export const payments = pgTable(
   },
   (t) => [index('payments_invoice_idx').on(t.invoiceId)],
 )
+
+export const inventoryItems = pgTable(
+  'inventory_items',
+  {
+    id: uuid('id').primaryKey(),
+    name: text('name').notNull(),
+    category: text('category', {
+      enum: ['medicines', 'consumables', 'lab_reagents', 'dental_materials', 'clinic_supplies', 'equipment'],
+    }).notNull(),
+    unit: text('unit').notNull().default('units'),
+    quantity: integer('quantity').notNull().default(0),
+    reorderLevel: integer('reorder_level').notNull().default(0),
+    unitPricePaise: bigint('unit_price_paise', { mode: 'number' }).notNull().default(0),
+    supplier: text('supplier'),
+    batchNo: text('batch_no'),
+    expiryDate: date('expiry_date'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('inventory_items_category_idx').on(t.category)],
+)
+
+export const stockMovements = pgTable(
+  'stock_movements',
+  {
+    id: uuid('id').primaryKey(),
+    itemId: uuid('item_id')
+      .notNull()
+      .references(() => inventoryItems.id, { onDelete: 'cascade' }),
+    delta: integer('delta').notNull(),
+    reason: text('reason', { enum: ['purchase', 'dispense', 'transfer', 'adjustment'] }).notNull(),
+    notes: text('notes'),
+    createdBy: uuid('created_by').references(() => users.id),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('stock_movements_item_idx').on(t.itemId),
+    index('stock_movements_created_idx').on(t.createdAt),
+  ],
+)
+
+export const labOrders = pgTable(
+  'lab_orders',
+  {
+    id: uuid('id').primaryKey(),
+    orderNo: text('order_no').notNull().unique(),
+    patientId: uuid('patient_id')
+      .notNull()
+      .references(() => patients.id),
+    encounterId: uuid('encounter_id').references(() => encounters.id, { onDelete: 'set null' }),
+    doctorId: uuid('doctor_id')
+      .notNull()
+      .references(() => users.id),
+    status: text('status', {
+      enum: ['ordered', 'collected', 'processing', 'completed', 'reviewed', 'cancelled'],
+    })
+      .notNull()
+      .default('ordered'),
+    priority: text('priority', { enum: ['routine', 'urgent', 'stat'] }).notNull().default('routine'),
+    investigations: jsonb('investigations')
+      .$type<{ name: string; sampleType: string | null }[]>()
+      .notNull()
+      .default([]),
+    results: jsonb('results').$type<{ name: string; value: string; unit?: string; flag?: string }[]>(),
+    notes: text('notes'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('lab_orders_patient_idx').on(t.patientId),
+    index('lab_orders_created_idx').on(t.createdAt),
+    index('lab_orders_status_idx').on(t.status),
+  ],
+)
+
+export const procedureOrders = pgTable(
+  'procedure_orders',
+  {
+    id: uuid('id').primaryKey(),
+    patientId: uuid('patient_id')
+      .notNull()
+      .references(() => patients.id),
+    doctorId: uuid('doctor_id')
+      .notNull()
+      .references(() => users.id),
+    name: text('name').notNull(),
+    pricePaise: bigint('price_paise', { mode: 'number' }).notNull().default(0),
+    room: text('room'),
+    status: text('status', {
+      enum: ['ordered', 'prepared', 'in_progress', 'completed', 'cancelled'],
+    })
+      .notNull()
+      .default('ordered'),
+    notes: text('notes'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('procedure_orders_patient_idx').on(t.patientId),
+    index('procedure_orders_created_idx').on(t.createdAt),
+  ],
+)

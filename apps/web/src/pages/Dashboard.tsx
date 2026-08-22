@@ -182,8 +182,8 @@ export default function Dashboard() {
             <h2 className="text-[15px] font-semibold text-surface-800 mb-4">Quick Actions</h2>
             <div className="grid grid-cols-3 gap-3">
               {[
-                { icon: UserPlus, label: 'New Patient', color: 'bg-primary-500 hover:bg-primary-600', to: '/patients' },
-                { icon: Calendar, label: 'Appointment', color: 'bg-accent-500 hover:bg-accent-600', to: '/appointments' },
+                { icon: UserPlus, label: 'New Patient', color: 'bg-primary-500 hover:bg-primary-600', to: '/patients?new=1' },
+                { icon: Calendar, label: 'Appointment', color: 'bg-accent-500 hover:bg-accent-600', to: '/appointments?new=1' },
                 { icon: Stethoscope, label: 'Consult', color: 'bg-success-500 hover:bg-success-600', to: '/consultation' },
                 { icon: CreditCard, label: 'New Bill', color: 'bg-warning-500 hover:bg-warning-600', to: '/billing' },
                 { icon: Pill, label: 'Pharmacy', color: 'bg-info-500 hover:bg-info-600', to: '/pharmacy' },

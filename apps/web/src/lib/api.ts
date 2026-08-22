@@ -53,7 +53,7 @@ export function setSessionExpiredHandler(handler: (() => void) | null): void {
 }
 
 interface RequestOptions {
-  method?: 'GET' | 'POST' | 'PATCH'
+  method?: 'GET' | 'POST' | 'PATCH' | 'PUT'
   body?: unknown
   auth?: boolean
 }
@@ -492,4 +492,211 @@ export async function addPayment(invoiceId: string, data: {
 
 export async function getPatientOutstanding(patientId: string): Promise<{ patientId: string; outstandingPaise: number }> {
   return api(`/invoices/patient/${patientId}/outstanding`)
+}
+
+export function describeApiError(e: unknown): string {
+  if (e instanceof ApiError) {
+    switch (e.code) {
+      case 'NETWORK_ERROR': return 'Cannot reach the server. Check your connection and try again.'
+      case 'VALIDATION_FAILED': return 'Some details are invalid. Please review the highlighted fields.'
+      case 'PERMISSION_DENIED': return 'Your account does not have permission to perform this action.'
+      case 'PATIENT_NOT_FOUND': return 'The selected patient no longer exists.'
+      case 'DOCTOR_NOT_FOUND': return 'The selected doctor is no longer available.'
+      case 'ITEM_NOT_FOUND': return 'That inventory item no longer exists.'
+      case 'LAB_ORDER_NOT_FOUND': return 'That lab order no longer exists.'
+      case 'PROCEDURE_ORDER_NOT_FOUND': return 'That procedure order no longer exists.'
+      case 'INSUFFICIENT_STOCK': return 'Not enough stock on hand for that movement.'
+      case 'INVALID_TRANSITION': return 'That status change is not allowed for this record.'
+      case 'RESULTS_REQUIRED': return 'Enter results before completing this lab order.'
+      case 'SAMPLE_NOT_COLLECTED': return 'Collect the sample before entering results.'
+      case 'PRESCRIPTION_NOT_ISSUED': return 'Only issued prescriptions can be dispensed.'
+      default: return e.code.replaceAll('_', ' ').toLowerCase()
+    }
+  }
+  return 'Something went wrong. Please try again.'
+}
+
+export interface PatientCreateInput {
+  firstName: string
+  lastName: string
+  phone: string
+  dateOfBirth?: string
+  gender?: 'M' | 'F' | 'O'
+  email?: string
+  bloodGroup?: string
+  abhaNumber?: string
+}
+
+export async function createPatient(data: PatientCreateInput): Promise<Patient> {
+  return api<Patient>('/patients', { method: 'POST', body: data })
+}
+
+export interface DoctorOption {
+  id: string
+  fullName: string
+  specialty: string | null
+}
+
+export async function listDoctors(): Promise<DoctorOption[]> {
+  return api<DoctorOption[]>('/appointments/doctors')
+}
+
+export interface AppointmentCreateInput {
+  patientId: string
+  doctorId: string
+  scheduledAt: string
+  durationMin?: number
+  source?: 'walk_in' | 'online' | 'whatsapp' | 'phone'
+  notes?: string
+}
+
+export async function createAppointment(data: AppointmentCreateInput): Promise<Appointment> {
+  return api<Appointment>('/appointments', { method: 'POST', body: data })
+}
+
+export interface InventoryItem {
+  id: string
+  name: string
+  category: 'medicines' | 'consumables' | 'lab_reagents' | 'dental_materials' | 'clinic_supplies' | 'equipment'
+  unit: string
+  quantity: number
+  reorderLevel: number
+  unitPricePaise: number
+  supplier?: string
+  batchNo?: string
+  expiryDate?: string
+  createdAt: string
+  updatedAt: string
+}
+
+export async function listInventoryItems(filters?: { category?: string; search?: string }): Promise<InventoryItem[]> {
+  const qs = new URLSearchParams()
+  if (filters?.category) qs.set('category', filters.category)
+  if (filters?.search) qs.set('search', filters.search)
+  const q = qs.toString()
+  return api<InventoryItem[]>(`/inventory/items${q ? `?${q}` : ''}`)
+}
+
+export async function createInventoryItem(data: {
+  name: string
+  category: InventoryItem['category']
+  unit?: string
+  quantity?: number
+  reorderLevel?: number
+  unitPricePaise?: number
+  supplier?: string
+  batchNo?: string
+  expiryDate?: string
+}): Promise<InventoryItem> {
+  return api<InventoryItem>('/inventory/items', { method: 'POST', body: data })
+}
+
+export async function adjustStock(id: string, data: {
+  delta: number
+  reason: 'purchase' | 'dispense' | 'transfer' | 'adjustment'
+  notes?: string
+}): Promise<InventoryItem> {
+  return api<InventoryItem>(`/inventory/items/${id}/stock`, { method: 'PATCH', body: data })
+}
+
+export interface LabOrder {
+  id: string
+  orderNo: string
+  patientId: string
+  patientName: string
+  encounterId?: string
+  doctorId: string
+  doctorName: string
+  status: 'ordered' | 'collected' | 'processing' | 'completed' | 'reviewed' | 'cancelled'
+  priority: 'routine' | 'urgent' | 'stat'
+  investigations: { name: string; sampleType?: string }[]
+  results: { name: string; value: string; unit?: string; flag?: string }[] | null
+  notes?: string
+  createdAt: string
+  updatedAt: string
+}
+
+export async function listLabOrders(date?: string): Promise<LabOrder[]> {
+  return api<LabOrder[]>(`/lab-orders${date ? `?date=${encodeURIComponent(date)}` : ''}`)
+}
+
+export async function createLabOrder(data: {
+  patientId: string
+  doctorId: string
+  priority?: 'routine' | 'urgent' | 'stat'
+  investigations: { name: string; sampleType?: string }[]
+  notes?: string
+}): Promise<LabOrder> {
+  return api<LabOrder>('/lab-orders', { method: 'POST', body: data })
+}
+
+export async function updateLabOrderStatus(id: string, status: LabOrder['status']): Promise<LabOrder> {
+  return api<LabOrder>(`/lab-orders/${id}/status`, { method: 'PATCH', body: { status } })
+}
+
+export async function saveLabResults(id: string, results: { name: string; value: string; unit?: string; flag?: 'normal' | 'low' | 'high' }[], complete: boolean): Promise<LabOrder> {
+  return api<LabOrder>(`/lab-orders/${id}/results`, { method: 'PUT', body: { results, complete } })
+}
+
+export interface ProcedureOrder {
+  id: string
+  patientId: string
+  patientName: string
+  doctorId: string
+  doctorName: string
+  name: string
+  pricePaise: number
+  room?: string
+  status: 'ordered' | 'prepared' | 'in_progress' | 'completed' | 'cancelled'
+  notes?: string
+  createdAt: string
+  updatedAt: string
+}
+
+export async function listProcedureOrders(date?: string): Promise<ProcedureOrder[]> {
+  return api<ProcedureOrder[]>(`/procedure-orders${date ? `?date=${encodeURIComponent(date)}` : ''}`)
+}
+
+export async function createProcedureOrder(data: {
+  patientId: string
+  doctorId: string
+  name: string
+  pricePaise?: number
+  room?: string
+  notes?: string
+}): Promise<ProcedureOrder> {
+  return api<ProcedureOrder>('/procedure-orders', { method: 'POST', body: data })
+}
+
+export async function updateProcedureOrderStatus(id: string, status: ProcedureOrder['status']): Promise<ProcedureOrder> {
+  return api<ProcedureOrder>(`/procedure-orders/${id}/status`, { method: 'PATCH', body: { status } })
+}
+
+export interface DispenseQueueItem {
+  prescriptionId: string
+  patientId: string
+  patientName: string
+  patientAge?: number
+  patientGender?: string
+  doctorName: string
+  status: string
+  notes?: string
+  createdAt: string
+  items: {
+    drugName: string
+    strength?: string
+    form?: string
+    dosage: string
+    frequency: string
+    quantity?: number
+    stockAvailable: boolean
+  }[]
+}
+
+export async function listDispenseQueue(): Promise<DispenseQueueItem[]> {
+  return api<DispenseQueueItem[]>('/pharmacy/dispense-queue')
+}
+
+export async function dispensePrescription(prescriptionId: string): Promise<DispenseQueueItem> {
+  return api<DispenseQueueItem>(`/pharmacy/prescriptions/${prescriptionId}/dispense`, { method: 'POST' })
 }

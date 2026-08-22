@@ -8,7 +8,13 @@ import {
 import type { AppointmentCreate, AppointmentStatus, QueueStatus } from '@jioplix/contracts'
 import { newId } from '@jioplix/contracts'
 import { DbService, type TenantTx } from '../db/db.service.js'
-import { appointments, branches, patients, queueTokens, users } from '../db/schema/tenant.js'
+import { appointments, branches, patients, queueTokens, roles, userBranchRoles, users } from '../db/schema/tenant.js'
+
+export interface DoctorView {
+  id: string
+  fullName: string
+  specialty: string | null
+}
 
 export interface AppointmentView {
   id: string
@@ -83,6 +89,22 @@ export class AppointmentsService {
         notes: r.notes,
       }))
     })
+  }
+
+  async listDoctors(schemaName: string): Promise<DoctorView[]> {
+    return this.db.withTenant(schemaName, (db) =>
+      db
+        .selectDistinct({
+          id: users.id,
+          fullName: users.fullName,
+          specialty: users.specialty,
+        })
+        .from(users)
+        .innerJoin(userBranchRoles, eq(userBranchRoles.userId, users.id))
+        .innerJoin(roles, eq(roles.id, userBranchRoles.roleId))
+        .where(and(eq(users.status, 'active'), eq(roles.key, 'doctor')))
+        .orderBy(asc(users.fullName)),
+    )
   }
 
   async create(schemaName: string, input: AppointmentCreate): Promise<AppointmentView> {

@@ -33,6 +33,12 @@ export class AppointmentsController {
     return { data: await this.appts.list(tenant.schemaName, { date: parseDate(date), doctorId, status }) }
   }
 
+  @Get('appointments/doctors')
+  @RequirePermissions('appointments:read')
+  async listDoctors(@CurrentTenant() tenant: TenantContext) {
+    return { data: await this.appts.listDoctors(tenant.schemaName) }
+  }
+
   @Post('appointments')
   @RequirePermissions('appointments:create')
   async create(@CurrentTenant() tenant: TenantContext, @Body() body: unknown) {

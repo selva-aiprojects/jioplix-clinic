@@ -656,6 +656,169 @@ await check('BILL-3  Patient outstanding total is zero after settlement', async 
   assert(status === 200 && Number(body.data.outstandingPaise) === 0, JSON.stringify(body))
 })
 
+await check('INV-1   Pharmacist creates inventory item; receptionist denied create', async () => {
+  const ph = await login('nova', '+919800000202')
+  const { status, body } = await req('/inventory/items', {
+    method: 'POST',
+    headers: { ...bearer(ph), 'content-type': 'application/json' },
+    body: JSON.stringify({
+      name: 'Paracetamol',
+      category: 'medicines',
+      unit: 'tablets',
+      quantity: 0,
+      reorderLevel: 20,
+      unitPricePaise: 65,
+      batchNo: 'SMOKE_TEST',
+    }),
+  })
+  assert(status < 300, `got ${status}: ${JSON.stringify(body)}`)
+  assert(body.data.quantity === 0 && body.data.category === 'medicines', JSON.stringify(body.data))
+
+  const rec = await login('nova', '+919800000201')
+  const denied = await req('/inventory/items', {
+    method: 'POST',
+    headers: { ...bearer(rec), 'content-type': 'application/json' },
+    body: JSON.stringify({ name: 'X', category: 'consumables' }),
+  })
+  assert(denied.status === 403 && denied.body.error?.code === 'PERMISSION_DENIED', JSON.stringify(denied.body))
+})
+
+await check('INV-2   Stock purchase +100 -> qty 100; overdraft rejected 400', async () => {
+  const ph = await login('nova', '+919800000202')
+  const list = await req('/inventory/items?category=medicines&search=Para', { headers: bearer(ph) })
+  assert(list.status === 200 && list.body.data.length === 1, JSON.stringify(list.body))
+  m2.itemId = list.body.data[0].id
+
+  const buy = await req(`/inventory/items/${m2.itemId}/stock`, {
+    method: 'PATCH',
+    headers: { ...bearer(ph), 'content-type': 'application/json' },
+    body: JSON.stringify({ delta: 100, reason: 'purchase' }),
+  })
+  assert(buy.status === 200 && buy.body.data.quantity === 100, JSON.stringify(buy.body))
+
+  const over = await req(`/inventory/items/${m2.itemId}/stock`, {
+    method: 'PATCH',
+    headers: { ...bearer(ph), 'content-type': 'application/json' },
+    body: JSON.stringify({ delta: -500, reason: 'adjustment' }),
+  })
+  assert(over.status === 400 && over.body.error?.code === 'INSUFFICIENT_STOCK', JSON.stringify(over.body))
+})
+
+await check('LAB-1   Lab tech creates lab order; invalid transition rejected', async () => {
+  const lt = await login('nova', '+919800000203')
+  const order = await req('/lab-orders', {
+    method: 'POST',
+    headers: { ...bearer(lt), 'content-type': 'application/json' },
+    body: JSON.stringify({
+      patientId: m2.patientId,
+      doctorId: m2.doctorId,
+      priority: 'urgent',
+      investigations: [{ name: 'CBC' }, { name: 'LFT', sampleType: 'serum' }],
+    }),
+  })
+  assert(order.status < 300, `got ${order.status}: ${JSON.stringify(order.body)}`)
+  assert(/^LB-\d{8}-\d+$/.test(order.body.data.orderNo ?? ''), `bad orderNo: ${order.body.data.orderNo}`)
+  assert(order.body.data.status === 'ordered' && order.body.data.investigations.length === 2, JSON.stringify(order.body.data))
+  m2.labOrderId = order.body.data.id
+
+  const skip = await req(`/lab-orders/${m2.labOrderId}/status`, {
+    method: 'PATCH',
+    headers: { ...bearer(lt), 'content-type': 'application/json' },
+    body: JSON.stringify({ status: 'completed' }),
+  })
+  assert(skip.status === 409 && skip.body.error?.code === 'INVALID_TRANSITION', JSON.stringify(skip.body))
+})
+
+await check('LAB-2   Collect -> process -> results -> completed -> reviewed', async () => {
+  const lt = await login('nova', '+919800000203')
+  const h = { ...bearer(lt), 'content-type': 'application/json' }
+  for (const st of ['collected', 'processing']) {
+    const r = await req(`/lab-orders/${m2.labOrderId}/status`, { method: 'PATCH', headers: h, body: JSON.stringify({ status: st }) })
+    assert(r.status === 200 && r.body.data.status === st, `${st}: ${JSON.stringify(r.body)}`)
+  }
+
+  const results = await req(`/lab-orders/${m2.labOrderId}/results`, {
+    method: 'PUT',
+    headers: h,
+    body: JSON.stringify({
+      results: [{ name: 'Hemoglobin', value: '13.5', unit: 'g/dL', flag: 'normal' }],
+      complete: true,
+    }),
+  })
+  assert(results.status === 200 && results.body.data.status === 'completed', JSON.stringify(results.body))
+  assert(results.body.data.results[0].value === '13.5', 'results not persisted')
+
+  const review = await req(`/lab-orders/${m2.labOrderId}/status`, {
+    method: 'PATCH',
+    headers: h,
+    body: JSON.stringify({ status: 'reviewed' }),
+  })
+  assert(review.status === 200 && review.body.data.status === 'reviewed', JSON.stringify(review.body))
+})
+
+await check('PROC-1  Procedure lifecycle ordered->prepared->in_progress->completed', async () => {
+  const rec = await login('nova', '+919800000201')
+  const order = await req('/procedure-orders', {
+    method: 'POST',
+    headers: { ...bearer(rec), 'content-type': 'application/json' },
+    body: JSON.stringify({
+      patientId: m2.patientId,
+      doctorId: m2.doctorId,
+      name: 'Wound Dressing',
+      pricePaise: 20000,
+      room: 'OPD-1',
+    }),
+  })
+  assert(order.status < 300 && order.body.data.status === 'ordered', `got ${order.status}: ${JSON.stringify(order.body)}`)
+  m2.procedureOrderId = order.body.data.id
+
+  const doc = await login('nova', '+919800000101')
+  const h = { ...bearer(doc), 'content-type': 'application/json' }
+  for (const st of ['prepared', 'in_progress', 'completed']) {
+    const r = await req(`/procedure-orders/${m2.procedureOrderId}/status`, { method: 'PATCH', headers: h, body: JSON.stringify({ status: st }) })
+    assert(r.status === 200 && r.body.data.status === st, `${st}: ${JSON.stringify(r.body)}`)
+  }
+
+  const done = await req(`/procedure-orders/${m2.procedureOrderId}/status`, {
+    method: 'PATCH',
+    headers: h,
+    body: JSON.stringify({ status: 'ordered' }),
+  })
+  assert(done.status === 409 && done.body.error?.code === 'INVALID_TRANSITION', JSON.stringify(done.body))
+})
+
+await check('PHARM-1 Dispense queue lists issued Rx; dispense decrements stock', async () => {
+  const ph = await login('nova', '+919800000202')
+  const queue = await req('/pharmacy/dispense-queue', { headers: bearer(ph) })
+  assert(queue.status === 200, `got ${queue.status}: ${JSON.stringify(queue.body)}`)
+  const entry = queue.body.data.find((q) => q.prescriptionId === m2.prescriptionId)
+  assert(entry, 'issued prescription missing from dispense queue')
+  assert(entry.status === 'issued' && entry.items.length === 1, JSON.stringify(entry))
+  assert(entry.items[0].drugName === 'Paracetamol' && entry.items[0].quantity === 9, JSON.stringify(entry.items))
+
+  const d = await req(`/pharmacy/prescriptions/${m2.prescriptionId}/dispense`, {
+    method: 'POST',
+    headers: bearer(ph),
+  })
+  assert(d.status < 300 && d.body.data.status === 'dispensed', `got ${d.status}: ${JSON.stringify(d.body)}`)
+
+  const after = await req('/inventory/items?category=medicines&search=Para', { headers: bearer(ph) })
+  assert(after.body.data[0].quantity === 91, `expected 91 after dispensing 9, got ${after.body.data[0].quantity}`)
+
+  const again = await req(`/pharmacy/prescriptions/${m2.prescriptionId}/dispense`, { method: 'POST', headers: bearer(ph) })
+  assert(again.status === 409 && again.body.error?.code === 'PRESCRIPTION_NOT_ISSUED', JSON.stringify(again.body))
+})
+
+await check('RBAC-5  Lab tech denied invoice creation', async () => {
+  const lt = await login('nova', '+919800000203')
+  const { status, body } = await req('/invoices', {
+    method: 'POST',
+    headers: { ...bearer(lt), 'content-type': 'application/json' },
+    body: JSON.stringify({ patientId: m2.patientId, lines: [{ itemType: 'other', itemName: 'X', unitPricePaise: 1 }] }),
+  })
+  assert(status === 403 && body.error?.code === 'PERMISSION_DENIED', JSON.stringify(body))
+})
+
 if (apiProcess) {
   apiProcess.kill()
 }
@@ -672,6 +835,13 @@ await check('CLEAN-1  Smoke-test rows removed from all tenant schemas', async ()
         SELECT id FROM ${s}.prescriptions WHERE patient_id IN (SELECT id FROM ${s}.patients WHERE phone LIKE '+919999%'))
     `)
     await psql(`DELETE FROM ${s}.prescriptions WHERE patient_id IN (SELECT id FROM ${s}.patients WHERE phone LIKE '+919999%')`)
+    await psql(`DELETE FROM ${s}.lab_orders WHERE patient_id IN (SELECT id FROM ${s}.patients WHERE phone LIKE '+919999%')`)
+    await psql(`DELETE FROM ${s}.procedure_orders WHERE patient_id IN (SELECT id FROM ${s}.patients WHERE phone LIKE '+919999%')`)
+    await psql(`
+      DELETE FROM ${s}.stock_movements WHERE item_id IN (
+        SELECT id FROM ${s}.inventory_items WHERE batch_no = 'SMOKE_TEST')
+    `)
+    await psql(`DELETE FROM ${s}.inventory_items WHERE batch_no = 'SMOKE_TEST'`)
     await psql(`
       DELETE FROM ${s}.encounter_diagnoses WHERE encounter_id IN (
         SELECT id FROM ${s}.encounters WHERE patient_id IN (SELECT id FROM ${s}.patients WHERE phone LIKE '+919999%'))

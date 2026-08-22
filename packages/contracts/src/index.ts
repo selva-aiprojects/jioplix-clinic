@@ -309,4 +309,180 @@ export const paymentSchema = paymentCreateSchema.extend({
 })
 export type Payment = z.infer<typeof paymentSchema>
 
+export const INVENTORY_CATEGORIES = [
+  'medicines',
+  'consumables',
+  'lab_reagents',
+  'dental_materials',
+  'clinic_supplies',
+  'equipment',
+] as const
+export type InventoryCategory = (typeof INVENTORY_CATEGORIES)[number]
+
+export const STOCK_MOVEMENT_REASONS = ['purchase', 'dispense', 'transfer', 'adjustment'] as const
+export type StockMovementReason = (typeof STOCK_MOVEMENT_REASONS)[number]
+
+export const inventoryItemCreateSchema = z.object({
+  name: z.string().min(1).max(200),
+  category: z.enum(INVENTORY_CATEGORIES),
+  unit: z.string().min(1).max(20).default('units'),
+  quantity: z.number().int().min(0).default(0),
+  reorderLevel: z.number().int().min(0).default(0),
+  unitPricePaise: z.number().int().min(0).default(0),
+  supplier: z.string().max(200).optional(),
+  batchNo: z.string().max(60).optional(),
+  expiryDate: z.string().date().optional(),
+})
+export type InventoryItemCreate = z.infer<typeof inventoryItemCreateSchema>
+
+export const inventoryItemSchema = inventoryItemCreateSchema.extend({
+  id: z.string().uuid(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+})
+export type InventoryItem = z.infer<typeof inventoryItemSchema>
+
+export const stockMovementCreateSchema = z.object({
+  delta: z.number().int(),
+  reason: z.enum(STOCK_MOVEMENT_REASONS),
+  notes: z.string().max(500).optional(),
+})
+export type StockMovementCreate = z.infer<typeof stockMovementCreateSchema>
+
+export const LAB_ORDER_PRIORITIES = ['routine', 'urgent', 'stat'] as const
+export type LabOrderPriority = (typeof LAB_ORDER_PRIORITIES)[number]
+
+export const LAB_ORDER_STATUSES = [
+  'ordered',
+  'collected',
+  'processing',
+  'completed',
+  'reviewed',
+  'cancelled',
+] as const
+export type LabOrderStatus = (typeof LAB_ORDER_STATUSES)[number]
+
+export const LAB_ORDER_TRANSITIONS: Record<LabOrderStatus, LabOrderStatus[]> = {
+  ordered: ['collected', 'cancelled'],
+  collected: ['processing', 'cancelled'],
+  processing: ['completed', 'cancelled'],
+  completed: ['reviewed'],
+  reviewed: [],
+  cancelled: [],
+}
+
+export const labOrderCreateSchema = z.object({
+  patientId: z.string().uuid(),
+  doctorId: z.string().uuid(),
+  encounterId: z.string().uuid().optional(),
+  priority: z.enum(LAB_ORDER_PRIORITIES).default('routine'),
+  investigations: z.array(z.object({
+    name: z.string().min(1).max(150),
+    sampleType: z.string().max(50).optional(),
+  })).min(1).max(25),
+  notes: z.string().max(1000).optional(),
+})
+export type LabOrderCreate = z.infer<typeof labOrderCreateSchema>
+
+export const labOrderStatusSchema = z.object({
+  status: z.enum(LAB_ORDER_STATUSES),
+})
+
+export const labResultEntrySchema = z.object({
+  name: z.string().min(1).max(150),
+  value: z.string().min(1).max(100),
+  unit: z.string().max(30).optional(),
+  flag: z.enum(['normal', 'low', 'high']).optional(),
+})
+export type LabResultEntry = z.infer<typeof labResultEntrySchema>
+
+export const labResultsUpdateSchema = z.object({
+  results: z.array(labResultEntrySchema).min(1).max(50),
+  complete: z.boolean().default(false),
+})
+
+export interface LabOrder {
+  id: string
+  orderNo: string
+  patientId: string
+  patientName: string
+  encounterId: string | null
+  doctorId: string
+  doctorName: string
+  status: LabOrderStatus
+  priority: LabOrderPriority
+  investigations: { name: string; sampleType: string | null }[]
+  results: { name: string; value: string; unit?: string; flag?: string }[] | null
+  notes: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export const PROCEDURE_STATUSES = [
+  'ordered',
+  'prepared',
+  'in_progress',
+  'completed',
+  'cancelled',
+] as const
+export type ProcedureStatus = (typeof PROCEDURE_STATUSES)[number]
+
+export const PROCEDURE_TRANSITIONS: Record<ProcedureStatus, ProcedureStatus[]> = {
+  ordered: ['prepared', 'cancelled'],
+  prepared: ['in_progress', 'cancelled'],
+  in_progress: ['completed'],
+  completed: [],
+  cancelled: [],
+}
+
+export const procedureOrderCreateSchema = z.object({
+  patientId: z.string().uuid(),
+  doctorId: z.string().uuid(),
+  name: z.string().min(1).max(200),
+  pricePaise: z.number().int().min(0).default(0),
+  room: z.string().max(50).optional(),
+  notes: z.string().max(1000).optional(),
+})
+export type ProcedureOrderCreate = z.infer<typeof procedureOrderCreateSchema>
+
+export const procedureOrderStatusSchema = z.object({
+  status: z.enum(PROCEDURE_STATUSES),
+})
+
+export interface ProcedureOrder {
+  id: string
+  patientId: string
+  patientName: string
+  doctorId: string
+  doctorName: string
+  name: string
+  pricePaise: number
+  room: string | null
+  status: ProcedureStatus
+  notes: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface DispenseQueueItem {
+  prescriptionId: string
+  patientId: string
+  patientName: string
+  patientAge: number | null
+  patientGender: string | null
+  doctorName: string
+  status: string
+  notes: string | null
+  createdAt: string
+  items: {
+    drugName: string
+    strength: string | null
+    form: string | null
+    dosage: string
+    frequency: string
+    quantity: number | null
+    stockAvailable: boolean
+  }[]
+}
+
 export { uuidv7 as newId }

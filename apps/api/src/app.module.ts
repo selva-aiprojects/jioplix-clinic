@@ -15,14 +15,35 @@ import { EncountersModule } from './encounters/encounters.module.js'
 import { PrescriptionsModule } from './prescriptions/prescriptions.module.js'
 import { BillingModule } from './billing/billing.module.js'
 import { AuditModule } from './common/audit.module.js'
+import { InventoryController } from './inventory/inventory.controller.js'
+import { InventoryService } from './inventory/inventory.service.js'
+import { LabsController } from './labs/labs.controller.js'
+import { LabsService } from './labs/labs.service.js'
+import { ProceduresController } from './procedures/procedures.controller.js'
+import { ProceduresService } from './procedures/procedures.service.js'
+import { PharmacyController } from './pharmacy/pharmacy.controller.js'
+import { PharmacyService } from './pharmacy/pharmacy.service.js'
 
 @Module({
-  controllers: [HealthController, PatientsController, AppointmentsController, AuthController],
+  controllers: [
+    HealthController,
+    PatientsController,
+    AppointmentsController,
+    AuthController,
+    InventoryController,
+    LabsController,
+    ProceduresController,
+    PharmacyController,
+  ],
   providers: [
     TenantGuard,
     PatientsService,
     AppointmentsService,
     AuthService,
+    InventoryService,
+    LabsService,
+    ProceduresService,
+    PharmacyService,
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: PermissionsGuard },
   ],
