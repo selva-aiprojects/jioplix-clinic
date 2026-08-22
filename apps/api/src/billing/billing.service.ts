@@ -1,6 +1,6 @@
-import { Injectable, NotFoundException } from '@nestjs/common'
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
 import { and, desc, eq, sql } from 'drizzle-orm'
-import { DbService, type TenantTx } from '../db/db.service.js'
+import { DbService, type TenantDb } from '../db/db.service.js'
 import { newId } from '@jioplix/contracts'
 import type { InvoiceCreate, PaymentCreate } from '@jioplix/contracts'
 import {
@@ -65,17 +65,17 @@ export interface PaymentView {
 export class BillingService {
   constructor(private readonly db: DbService) {}
 
-  private generateInvoiceNo(tx: TenantTx, branchId: string): string {
+  private async generateInvoiceNo(tx: TenantDb, branchId: string): Promise<string> {
     const today = new Date().toISOString().slice(0, 10).replace(/-/g, '')
-    const [row] = tx
+    const [row] = await tx
       .select({ count: sql<number>`count(*)` })
       .from(invoices)
       .where(and(eq(invoices.branchId, branchId), sql`date(${invoices.createdAt}) = CURRENT_DATE`))
-    const seq = String((row?.count ?? 0) + 1).padStart(3, '0')
+    const seq = String(Number(row?.count ?? 0) + 1).padStart(3, '0')
     return `INV-${today}-${seq}`
   }
 
-  async createInvoice(schemaName: string, input: InvoiceCreate) {
+  async createInvoice(schemaName: string, input: InvoiceCreate, actorUserId: string) {
     return this.db.withTenant(schemaName, async (db) => {
       const [patient] = await db.select().from(patients).where(eq(patients.id, input.patientId)).limit(1)
       if (!patient) throw new NotFoundException('PATIENT_NOT_FOUND')
@@ -83,7 +83,7 @@ export class BillingService {
       const [branch] = await db.select().from(branches).orderBy(branches.createdAt).limit(1)
       if (!branch) throw new NotFoundException('BRANCH_NOT_FOUND')
 
-      const invoiceNo = this.generateInvoiceNo(db, branch.id)
+      const invoiceNo = await this.generateInvoiceNo(db, branch.id)
 
       let subTotal = 0
       let cgst = 0
@@ -114,8 +114,9 @@ export class BillingService {
 
       const discount = input.discountPaise ?? 0
       const total = subTotal + cgst + sgst + igst - discount
-      const roundOff = total % 100
-      const finalTotal = total - roundOff
+      const rem = ((total % 100) + 100) % 100
+      const roundOff = rem > 50 ? 100 - rem : -rem
+      const finalTotal = total + roundOff
 
       const [inv] = await db
         .insert(invoices)
@@ -135,8 +136,8 @@ export class BillingService {
           totalPaise: finalTotal,
           balancePaise: finalTotal,
           status: 'draft',
-          createdBy: patient.id,
-          updatedBy: patient.id,
+          createdBy: actorUserId,
+          updatedBy: actorUserId,
         })
         .returning()
 
@@ -159,9 +160,9 @@ export class BillingService {
           quantity: line.quantity,
           unitPricePaise: line.unitPricePaise,
           lineTotalPaise: line.lineTotalPaise,
-          cgstRate: line.cgstRate,
-          sgstRate: line.sgstRate,
-          igstRate: line.igstRate,
+          cgstRate: line.cgstRate ?? 0,
+          sgstRate: line.sgstRate ?? 0,
+          igstRate: line.igstRate ?? 0,
         })
       }
 
@@ -212,9 +213,9 @@ export class BillingService {
         quantity: l.quantity,
         unitPricePaise: l.unitPricePaise,
         lineTotalPaise: l.lineTotalPaise,
-        cgstRate: l.cgstRate,
-        sgstRate: l.sgstRate,
-        igstRate: l.igstRate,
+        cgstRate: l.cgstRate ?? 0,
+        sgstRate: l.sgstRate ?? 0,
+        igstRate: l.igstRate ?? 0,
       }))
 
       const paymentRows = await db.select().from(payments).where(eq(payments.invoiceId, id))
@@ -277,13 +278,14 @@ export class BillingService {
     })
   }
 
-  async addPayment(schemaName: string, invoiceId: string, input: PaymentCreate) {
+  async addPayment(schemaName: string, invoiceId: string, input: PaymentCreate, actorUserId: string) {
     return this.db.withTenant(schemaName, async (tx) => {
       const [inv] = await tx.select().from(invoices).where(eq(invoices.id, invoiceId)).limit(1)
       if (!inv) throw new NotFoundException('INVOICE_NOT_FOUND')
       if (inv.status === 'void' || inv.status === 'refunded') throw new BadRequestException('INVOICE_CLOSED')
+      if (input.invoiceId !== invoiceId) throw new BadRequestException('VALIDATION_FAILED')
 
-      const [user] = await tx.select().from(users).where(eq(users.id, input.receivedBy)).limit(1)
+      const [user] = await tx.select().from(users).where(eq(users.id, actorUserId)).limit(1)
       if (!user) throw new NotFoundException('USER_NOT_FOUND')
 
       await tx.insert(payments).values({
@@ -292,7 +294,7 @@ export class BillingService {
         amountPaise: input.amountPaise,
         mode: input.mode,
         reference: input.reference ?? null,
-        receivedBy: input.receivedBy,
+        receivedBy: actorUserId,
         notes: input.notes ?? null,
       })
 
@@ -320,7 +322,11 @@ export class BillingService {
     return this.db.withTenant(schemaName, async (db) => {
       const conditions = []
       if (filters.patientId) conditions.push(eq(invoices.patientId, filters.patientId))
-      if (filters.status) conditions.push(eq(invoices.status, filters.status))
+      if (filters.status) {
+        const allowed = ['draft', 'issued', 'partial', 'paid', 'void', 'refunded'] as const
+        const s = filters.status as (typeof allowed)[number]
+        conditions.push(eq(invoices.status, s))
+      }
 
       const rows = await db
         .select({

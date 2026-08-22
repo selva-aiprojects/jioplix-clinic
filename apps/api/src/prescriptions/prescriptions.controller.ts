@@ -9,6 +9,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common'
 import {
@@ -33,6 +34,16 @@ export class PrescriptionsController {
     const parsed = prescriptionCreateSchema.safeParse(body)
     if (!parsed.success) throw new BadRequestException('VALIDATION_FAILED')
     return { data: await this.prescriptions.create(tenant.schemaName, parsed.data) }
+  }
+
+  @Get()
+  @RequirePermissions('prescriptions:read')
+  async list(
+    @CurrentTenant() tenant: TenantContext,
+    @Query('encounterId') encounterId?: string,
+  ) {
+    if (!encounterId) throw new BadRequestException('VALIDATION_FAILED')
+    return { data: await this.prescriptions.listByEncounter(tenant.schemaName, encounterId) }
   }
 
   @Get(':id')

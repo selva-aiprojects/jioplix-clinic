@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common'
-import { and, eq } from 'drizzle-orm'
+import { and, desc, eq } from 'drizzle-orm'
 import { DbService, type TenantTx } from '../db/db.service.js'
 import { auditLogs } from '../db/schema/tenant.js'
 import { newId } from '@jioplix/contracts'

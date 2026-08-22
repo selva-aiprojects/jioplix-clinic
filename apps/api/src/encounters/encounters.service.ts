@@ -1,5 +1,5 @@
-import { Injectable, NotFoundException } from '@nestjs/common'
-import { and, desc, eq, sql } from 'drizzle-orm'
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
+import { and, desc, eq, inArray, sql } from 'drizzle-orm'
 import { DbService, type TenantTx } from '../db/db.service.js'
 import { newId } from '@jioplix/contracts'
 import type {
@@ -97,7 +97,7 @@ export class EncountersService {
           historyPresentIllness: input.historyPresentIllness ?? null,
           examinationFindings: input.examinationFindings ?? null,
           clinicalNotes: input.clinicalNotes ?? null,
-          followUpDate: input.followUpDate ? new Date(input.followUpDate) : null,
+          followUpDate: input.followUpDate ?? null,
           followUpNotes: input.followUpNotes ?? null,
           createdBy: input.doctorId,
           updatedBy: input.doctorId,
@@ -116,7 +116,7 @@ export class EncountersService {
         historyPresentIllness: row.historyPresentIllness,
         examinationFindings: row.examinationFindings,
         clinicalNotes: row.clinicalNotes,
-        followUpDate: row.followUpDate?.toISOString().slice(0, 10) ?? null,
+        followUpDate: row.followUpDate ?? null,
         followUpNotes: row.followUpNotes,
         isLocked: row.isLocked,
         lockedAt: row.lockedAt?.toISOString() ?? null,
@@ -192,12 +192,12 @@ export class EncountersService {
         appointmentId: enc.appointmentId,
         doctorId: enc.doctorId,
         doctorName: doctor?.fullName ?? '',
-        encounterDate: enc.encounterDate.toISOString().slice(0, 10),
+        encounterDate: enc.encounterDate,
         chiefComplaint: enc.chiefComplaint,
         historyPresentIllness: enc.historyPresentIllness,
         examinationFindings: enc.examinationFindings,
         clinicalNotes: enc.clinicalNotes,
-        followUpDate: enc.followUpDate?.toISOString().slice(0, 10) ?? null,
+        followUpDate: enc.followUpDate ?? null,
         followUpNotes: enc.followUpNotes,
         isLocked: enc.isLocked,
         lockedAt: enc.lockedAt?.toISOString() ?? null,
@@ -223,7 +223,7 @@ export class EncountersService {
           ...(input.historyPresentIllness !== undefined && { historyPresentIllness: input.historyPresentIllness }),
           ...(input.examinationFindings !== undefined && { examinationFindings: input.examinationFindings }),
           ...(input.clinicalNotes !== undefined && { clinicalNotes: input.clinicalNotes }),
-          ...(input.followUpDate !== undefined && { followUpDate: input.followUpDate ? new Date(input.followUpDate) : null }),
+          ...(input.followUpDate !== undefined && { followUpDate: input.followUpDate ?? null }),
           ...(input.followUpNotes !== undefined && { followUpNotes: input.followUpNotes }),
           updatedBy: current.doctorId,
           updatedAt: new Date(),
@@ -319,6 +319,52 @@ export class EncountersService {
         .returning()
 
       return { id: row.id, isLocked: row.isLocked, lockedAt: row.lockedAt?.toISOString() ?? null }
+    })
+  }
+
+  async listByPatient(schemaName: string, patientId: string) {
+    return this.db.withTenant(schemaName, async (db) => {
+      const rows = await db
+        .select({
+          id: encounters.id,
+          doctorName: users.fullName,
+          encounterDate: encounters.encounterDate,
+          chiefComplaint: encounters.chiefComplaint,
+          examinationFindings: encounters.examinationFindings,
+          isLocked: encounters.isLocked,
+          createdAt: encounters.createdAt,
+        })
+        .from(encounters)
+        .leftJoin(users, eq(users.id, encounters.doctorId))
+        .where(eq(encounters.patientId, patientId))
+        .orderBy(desc(encounters.createdAt))
+        .limit(50)
+
+      if (rows.length === 0) return []
+
+      const ids = rows.map((r) => r.id)
+      const diagRows = await db
+        .select()
+        .from(encounterDiagnoses)
+        .where(inArray(encounterDiagnoses.encounterId, ids))
+
+      const diagByEncounter = new Map<string, { icd10Code: string; icd10Name: string; type: string }[]>()
+      for (const d of diagRows) {
+        const list = diagByEncounter.get(d.encounterId) ?? []
+        list.push({ icd10Code: d.icd10Code, icd10Name: d.icd10Name, type: d.type })
+        diagByEncounter.set(d.encounterId, list)
+      }
+
+      return rows.map((r) => ({
+        id: r.id,
+        doctorName: r.doctorName ?? '',
+        encounterDate: r.encounterDate,
+        chiefComplaint: r.chiefComplaint,
+        examinationFindings: r.examinationFindings,
+        isLocked: r.isLocked,
+        diagnoses: diagByEncounter.get(r.id) ?? [],
+        createdAt: r.createdAt.toISOString(),
+      }))
     })
   }
 }

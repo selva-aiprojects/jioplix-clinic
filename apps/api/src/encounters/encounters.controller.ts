@@ -13,7 +13,7 @@ import {
 } from '@nestjs/common'
 import {
   encounterCreateSchema,
-  encounterStatusSchema,
+  encounterUpdateSchema,
   diagnosisCreateSchema,
   vitalsCreateSchema,
 } from '@jioplix/contracts'
@@ -47,7 +47,7 @@ export class EncountersController {
   @Patch(':id')
   @RequirePermissions('encounters:update')
   async update(@CurrentTenant() tenant: TenantContext, @Param('id') id: string, @Body() body: unknown) {
-    const parsed = encounterStatusSchema.safeParse(body)
+    const parsed = encounterUpdateSchema.safeParse(body)
     if (!parsed.success) throw new BadRequestException('VALIDATION_FAILED')
     return { data: await this.encounters.update(tenant.schemaName, id, parsed.data) }
   }
@@ -73,5 +73,17 @@ export class EncountersController {
   @RequirePermissions('encounters:lock')
   async lock(@CurrentTenant() tenant: TenantContext, @Param('id') id: string) {
     return { data: await this.encounters.lock(tenant.schemaName, id) }
+  }
+}
+
+@Controller('patients')
+@UseGuards(TenantGuard)
+export class PatientEncountersController {
+  constructor(private readonly encounters: EncountersService) {}
+
+  @Get(':id/encounters')
+  @RequirePermissions('encounters:read')
+  async listForPatient(@CurrentTenant() tenant: TenantContext, @Param('id') id: string) {
+    return { data: await this.encounters.listByPatient(tenant.schemaName, id) }
   }
 }

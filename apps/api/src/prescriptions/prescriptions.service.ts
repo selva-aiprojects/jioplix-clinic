@@ -1,6 +1,6 @@
-import { Injectable, NotFoundException } from '@nestjs/common'
-import { eq } from 'drizzle-orm'
-import { DbService, type TenantTx } from '../db/db.service.js'
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
+import { desc, eq, sql } from 'drizzle-orm'
+import { DbService, type TenantDb } from '../db/db.service.js'
 import { newId } from '@jioplix/contracts'
 import type { PrescriptionCreate, PrescriptionItemCreate } from '@jioplix/contracts'
 import {
@@ -92,50 +92,72 @@ export class PrescriptionsService {
     return this.db.withTenant(schemaName, async (db) => {
       const [rx] = await db.select().from(prescriptions).where(eq(prescriptions.id, id)).limit(1)
       if (!rx) return null
-
-      const [patient] = await db
-        .select({ firstName: patients.firstName, lastName: patients.lastName })
-        .from(patients)
-        .where(eq(patients.id, rx.patientId))
-        .limit(1)
-      const [doctor] = await db.select().from(users).where(eq(users.id, rx.doctorId)).limit(1)
-
-      const items = await db
-        .select()
-        .from(prescriptionItems)
-        .where(eq(prescriptionItems.prescriptionId, id))
-        .orderBy(prescriptionItems.sequence)
-
-      const itemViews: PrescriptionItemView[] = items.map((it) => ({
-        id: it.id,
-        prescriptionId: it.prescriptionId,
-        drugName: it.drugName,
-        genericName: it.genericName,
-        strength: it.strength,
-        form: it.form,
-        dosage: it.dosage,
-        frequency: it.frequency,
-        route: it.route,
-        durationDays: it.durationDays,
-        quantity: it.quantity,
-        instructions: it.instructions,
-        sequence: it.sequence,
-      }))
-
-      return {
-        id: rx.id,
-        encounterId: rx.encounterId,
-        patientId: rx.patientId,
-        patientName: `${patient?.firstName ?? ''} ${patient?.lastName ?? ''}`.trim(),
-        doctorId: rx.doctorId,
-        doctorName: doctor?.fullName ?? '',
-        status: rx.status,
-        notes: rx.notes,
-        items: itemViews,
-        createdAt: rx.createdAt.toISOString(),
-        updatedAt: rx.updatedAt.toISOString(),
-      }
+      return this.buildView(db, rx)
     })
+  }
+
+  async listByEncounter(schemaName: string, encounterId: string) {
+    return this.db.withTenant(schemaName, async (db) => {
+      const rows = await db
+        .select()
+        .from(prescriptions)
+        .where(eq(prescriptions.encounterId, encounterId))
+        .orderBy(desc(prescriptions.createdAt))
+
+      const views = []
+      for (const rx of rows) {
+        views.push(await this.buildView(db, rx))
+      }
+      return views
+    })
+  }
+
+  private async buildView(
+    db: TenantDb,
+    rx: typeof prescriptions.$inferSelect,
+  ) {
+    const [patient] = await db
+      .select({ firstName: patients.firstName, lastName: patients.lastName })
+      .from(patients)
+      .where(eq(patients.id, rx.patientId))
+      .limit(1)
+    const [doctor] = await db.select().from(users).where(eq(users.id, rx.doctorId)).limit(1)
+
+    const items = await db
+      .select()
+      .from(prescriptionItems)
+      .where(eq(prescriptionItems.prescriptionId, rx.id))
+      .orderBy(prescriptionItems.sequence)
+
+    const itemViews: PrescriptionItemView[] = items.map((it) => ({
+      id: it.id,
+      prescriptionId: it.prescriptionId,
+      drugName: it.drugName,
+      genericName: it.genericName,
+      strength: it.strength,
+      form: it.form,
+      dosage: it.dosage,
+      frequency: it.frequency,
+      route: it.route,
+      durationDays: it.durationDays,
+      quantity: it.quantity,
+      instructions: it.instructions,
+      sequence: it.sequence,
+    }))
+
+    return {
+      id: rx.id,
+      encounterId: rx.encounterId,
+      patientId: rx.patientId,
+      patientName: `${patient?.firstName ?? ''} ${patient?.lastName ?? ''}`.trim(),
+      doctorId: rx.doctorId,
+      doctorName: doctor?.fullName ?? '',
+      status: rx.status,
+      notes: rx.notes,
+      items: itemViews,
+      createdAt: rx.createdAt.toISOString(),
+      updatedAt: rx.updatedAt.toISOString(),
+    }
   }
 
   async updateStatus(schemaName: string, id: string, next: string) {

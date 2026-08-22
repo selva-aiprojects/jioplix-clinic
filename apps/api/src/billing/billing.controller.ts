@@ -20,7 +20,8 @@ import { BillingService } from './billing.service.js'
 import { TenantGuard } from '../tenancy/tenant.guard.js'
 import { CurrentTenant } from '../tenancy/current-tenant.decorator.js'
 import type { TenantContext } from '../tenancy/tenant.guard.js'
-import { RequirePermissions } from '../auth/auth.decorators.js'
+import { CurrentAuth, RequirePermissions } from '../auth/auth.decorators.js'
+import type { AuthContext } from '@jioplix/contracts'
 
 @Controller('invoices')
 @UseGuards(TenantGuard)
@@ -29,10 +30,14 @@ export class BillingController {
 
   @Post()
   @RequirePermissions('invoices:create')
-  async create(@CurrentTenant() tenant: TenantContext, @Body() body: unknown) {
+  async create(
+    @CurrentTenant() tenant: TenantContext,
+    @CurrentAuth() auth: AuthContext,
+    @Body() body: unknown,
+  ) {
     const parsed = invoiceCreateSchema.safeParse(body)
     if (!parsed.success) throw new BadRequestException('VALIDATION_FAILED')
-    return { data: await this.billing.createInvoice(tenant.schemaName, parsed.data) }
+    return { data: await this.billing.createInvoice(tenant.schemaName, parsed.data, auth.userId) }
   }
 
   @Get(':id')
@@ -61,12 +66,13 @@ export class BillingController {
   @RequirePermissions('payments:create')
   async addPayment(
     @CurrentTenant() tenant: TenantContext,
+    @CurrentAuth() auth: AuthContext,
     @Param('id') id: string,
     @Body() body: unknown,
   ) {
     const parsed = paymentCreateSchema.safeParse(body)
     if (!parsed.success) throw new BadRequestException('VALIDATION_FAILED')
-    return { data: await this.billing.addPayment(tenant.schemaName, id, parsed.data) }
+    return { data: await this.billing.addPayment(tenant.schemaName, id, parsed.data, auth.userId) }
   }
 
   @Get()

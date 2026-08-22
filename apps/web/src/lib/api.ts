@@ -53,7 +53,7 @@ export function setSessionExpiredHandler(handler: (() => void) | null): void {
 }
 
 interface RequestOptions {
-  method?: 'GET' | 'POST'
+  method?: 'GET' | 'POST' | 'PATCH'
   body?: unknown
   auth?: boolean
 }
@@ -213,6 +213,10 @@ export async function listAppointments(date: string, doctorId?: string): Promise
   return api<Appointment[]>(`/appointments?${qs.toString()}`)
 }
 
+export async function updateAppointmentStatus(id: string, status: string): Promise<{ id: string; status: string }> {
+  return api(`/appointments/${id}/status`, { method: 'PATCH', body: { status } })
+}
+
 export async function listQueue(date: string): Promise<{ tokens: QueueToken[]; waiting: number }> {
   return api<{ tokens: QueueToken[]; waiting: number }>(`/queue?date=${encodeURIComponent(date)}`)
 }
@@ -361,6 +365,21 @@ export async function getEncounter(id: string): Promise<Encounter> {
   return api<Encounter>(`/encounters/${id}`)
 }
 
+export interface PatientEncounterSummary {
+  id: string
+  doctorName: string
+  encounterDate: string
+  chiefComplaint: string | null
+  examinationFindings: string | null
+  isLocked: boolean
+  diagnoses: { icd10Code: string; icd10Name: string; type: string }[]
+  createdAt: string
+}
+
+export async function listPatientEncounters(patientId: string): Promise<PatientEncounterSummary[]> {
+  return api<PatientEncounterSummary[]>(`/patients/${patientId}/encounters`)
+}
+
 export async function updateEncounter(id: string, data: {
   chiefComplaint?: string
   historyPresentIllness?: string
@@ -406,6 +425,10 @@ export async function createPrescription(data: {
 
 export async function getPrescription(id: string): Promise<Prescription> {
   return api<Prescription>(`/prescriptions/${id}`)
+}
+
+export async function listPrescriptionsByEncounter(encounterId: string): Promise<Prescription[]> {
+  return api<Prescription[]>(`/prescriptions?encounterId=${encodeURIComponent(encounterId)}`)
 }
 
 export async function updatePrescriptionStatus(id: string, status: string): Promise<{ id: string; status: string; updatedAt: string }> {
