@@ -2,7 +2,8 @@ import { useEffect, useState, type ReactNode } from 'react'
 import {
   Boxes, Package, AlertTriangle, IndianRupee, Truck, Search, Plus,
   ArrowLeftRight, Download, Warehouse, Pill, FlaskConical, Bandage,
-  Stethoscope, HeartPulse, X, CheckCircle2, Loader2, AlertCircle,
+  Stethoscope, HeartPulse, X, CheckCircle2, Loader2, AlertCircle, FileSpreadsheet,
+  Upload, Printer, BrainCircuit,
 } from 'lucide-react'
 import { PageHeader, StatCard, Button } from '../components/ui'
 import {
@@ -67,6 +68,13 @@ interface ItemForm {
   expiryDate: string
 }
 
+interface ImportRow {
+  name: string
+  quantity: number
+  currentQuantity: number
+  itemId: string
+}
+
 const emptyItemForm: ItemForm = {
   name: '', category: '', unit: 'units', quantity: '', reorderLevel: '',
   priceRupees: '', supplier: '', batchNo: '', expiryDate: '',
@@ -122,6 +130,9 @@ export default function Inventory() {
 
   const [flash, setFlash] = useState<string | null>(null)
   const [pageError, setPageError] = useState<string | null>(null)
+  const [importRows, setImportRows] = useState<ImportRow[]>([])
+  const [importError, setImportError] = useState<string | null>(null)
+  const [showImport, setShowImport] = useState(false)
 
   async function refresh() {
     try {
@@ -281,6 +292,44 @@ export default function Inventory() {
     URL.revokeObjectURL(url)
   }
 
+  function downloadStockCsv() {
+    const rows = [['Item', 'Category', 'Unit', 'Quantity', 'Reorder Level', 'Unit Price', 'Supplier', 'Batch No', 'Expiry Date'], ...items.map(i => [i.name, i.category, i.unit, String(i.quantity), String(i.reorderLevel), String(i.unitPricePaise / 100), i.supplier ?? '', i.batchNo ?? '', i.expiryDate ?? ''])]
+    const csv = rows.map(row => row.map(value => `"${value.replaceAll('"', '""')}"`).join(',')).join('\n')
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }))
+    const a = document.createElement('a'); a.href = url; a.download = 'jioplix-stock-register.csv'; a.click(); URL.revokeObjectURL(url)
+  }
+
+  function importStockCsv(file: File) {
+    const reader = new FileReader()
+    reader.onload = () => {
+      const lines = String(reader.result ?? '').split(/\r?\n/).filter(Boolean)
+      const parsed = lines.slice(1).map(line => line.split(',').map(value => value.trim().replace(/^"|"$/g, ''))).map(([name, quantity]) => ({ name, quantity: Number(quantity) })).filter(row => row.name && Number.isInteger(row.quantity) && row.quantity >= 0)
+      const matched = parsed.map(row => { const item = items.find(i => i.name.toLowerCase() === row.name.toLowerCase()); return item ? { ...row, currentQuantity: item.quantity, itemId: item.id } : null }).filter((row): row is ImportRow => row !== null)
+      setImportRows(matched); setImportError(matched.length ? null : 'No matching inventory items found. Export the stock register first to preserve item names.')
+      setShowImport(true)
+    }
+    reader.readAsText(file)
+  }
+
+  async function applyImport() {
+    setBusy(true); setImportError(null)
+    try {
+      for (const row of importRows) {
+        if (row.quantity !== row.currentQuantity) await adjustStock(row.itemId, { delta: row.quantity - row.currentQuantity, reason: 'adjustment', notes: 'Imported stock reconciliation' })
+      }
+      await refresh(); setShowImport(false); setFlash('Stock reconciliation applied successfully')
+    } catch (e) { setImportError(describeApiError(e)) } finally { setBusy(false) }
+  }
+
+  function printStockDocument(kind: 'invoice' | 'challan') {
+    const printWindow = window.open('', '_blank', 'width=900,height=900')
+    if (!printWindow) return
+    const title = kind === 'invoice' ? 'Stock Invoice Copy' : 'Stock Delivery Challan'
+    const rows = items.map(i => `<tr><td>${i.name}</td><td>${i.batchNo ?? '-'}</td><td>${i.quantity} ${i.unit}</td><td>${i.expiryDate ?? '-'}</td><td>₹${(i.quantity * i.unitPricePaise / 100).toLocaleString('en-IN')}</td></tr>`).join('')
+    printWindow.document.write(`<html><head><title>${title}</title><style>body{font-family:Arial;color:#10234a;margin:40px}h1{font-size:24px;border-bottom:2px solid #1265e8;padding-bottom:14px}p{font-size:13px;color:#475569}table{border-collapse:collapse;width:100%;margin-top:24px;font-size:12px}th,td{padding:10px 8px;border-bottom:1px solid #e2e8f0;text-align:left}th{background:#f6f9fc;font-size:10px;text-transform:uppercase}footer{margin-top:40px;border-top:1px solid #e2e8f0;padding-top:12px;font-size:11px;color:#64748b}</style></head><body><h1>Jioplix · ${title}</h1><p>Generated ${new Date().toLocaleString('en-IN')}</p><table><thead><tr><th>Item</th><th>Batch</th><th>Quantity</th><th>Expiry</th><th>Value</th></tr></thead><tbody>${rows}</tbody></table><footer>For stock reconciliation and delivery records. Verify quantities and expiry dates before acceptance.</footer></body></html>`)
+    printWindow.document.close(); printWindow.focus(); printWindow.print()
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -297,6 +346,15 @@ export default function Inventory() {
             <Button onClick={openAdd}>
               <Plus className="w-4 h-4" /> Add Item
             </Button>
+            <button onClick={downloadStockCsv} className="inline-flex items-center gap-2 rounded-xl border border-surface-200 bg-white px-3 py-2 text-[12px] font-semibold text-surface-600 hover:bg-surface-50" title="Download Excel-compatible stock register">
+              <FileSpreadsheet className="h-4 w-4 text-success-600" /> Export Excel
+            </button>
+            <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-surface-200 bg-white px-3 py-2 text-[12px] font-semibold text-surface-600 hover:bg-surface-50" title="Import stock count CSV for review">
+              <Upload className="h-4 w-4 text-primary-600" /> Import Count
+              <input type="file" accept=".csv,text/csv" className="sr-only" onChange={event => { const file = event.target.files?.[0]; if (file) importStockCsv(file); event.currentTarget.value = '' }} />
+            </label>
+            <button onClick={() => printStockDocument('invoice')} className="inline-flex items-center gap-2 rounded-xl border border-surface-200 bg-white px-3 py-2 text-[12px] font-semibold text-surface-600 hover:bg-surface-50" title="Print stock invoice copy"><Printer className="h-4 w-4 text-info-600" /> Invoice Copy</button>
+            <button onClick={() => printStockDocument('challan')} className="inline-flex items-center gap-2 rounded-xl border border-surface-200 bg-white px-3 py-2 text-[12px] font-semibold text-surface-600 hover:bg-surface-50" title="Print delivery challan"><Printer className="h-4 w-4 text-accent-600" /> Delivery Challan</button>
           </>
         }
       />
@@ -315,6 +373,12 @@ export default function Inventory() {
           {flash}
           <button className="ml-auto underline" onClick={() => setFlash(null)}>dismiss</button>
         </div>
+      )}
+
+      {expiring.length > 0 && (
+        <section className="rounded-2xl border border-warning-200 bg-warning-50/60 p-4">
+          <div className="flex items-start gap-3"><BrainCircuit className="mt-0.5 h-5 w-5 flex-shrink-0 text-warning-600" /><div className="flex-1"><p className="text-[13px] font-bold text-warning-800">AI Stock Intelligence</p><p className="mt-1 text-[12px] leading-5 text-warning-700">Priority review: {expiring.filter(i => daysUntil(i.expiryDate!) < 0).length} expired and {expiring.filter(i => daysUntil(i.expiryDate!) >= 0).length} batches expire within 90 days. Use oldest batches first and reconcile supplier documents before receiving stock.</p><div className="mt-3 flex flex-wrap gap-2">{expiring.slice(0, 5).map(i => <span key={i.id} className={`rounded-lg border px-2.5 py-1 text-[11px] font-semibold ${daysUntil(i.expiryDate!) < 0 ? 'border-danger-200 bg-danger-50 text-danger-700' : 'border-warning-200 bg-warning-50 text-warning-700'}`}>{i.name} · {daysUntil(i.expiryDate!) < 0 ? 'Expired' : `${daysUntil(i.expiryDate!)}d left`}</span>)}</div></div></div>
+        </section>
       )}
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
@@ -412,6 +476,7 @@ export default function Inventory() {
                       <p className="text-[11px] text-surface-400">
                         {i.expiryDate ? new Date(`${i.expiryDate}T00:00:00`).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' }) : '—'}
                       </p>
+                      {i.expiryDate && <span className={`mt-1 inline-flex rounded-md border px-1.5 py-0.5 text-[10px] font-semibold ${daysUntil(i.expiryDate) < 0 ? 'border-danger-200 bg-danger-50 text-danger-700' : daysUntil(i.expiryDate) <= 90 ? 'border-warning-200 bg-warning-50 text-warning-700' : 'border-success-200 bg-success-50 text-success-700'}`}>{daysUntil(i.expiryDate) < 0 ? 'Expired' : daysUntil(i.expiryDate) <= 90 ? `${daysUntil(i.expiryDate)}d left` : 'Valid'}</span>}
                     </td>
                     <td className="px-5 py-3 min-w-[130px]">
                       <div className="flex items-center gap-2">
@@ -454,6 +519,16 @@ export default function Inventory() {
           </div>
         ) : null}
       </div>
+
+      {showImport && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-[2px]" onClick={() => !busy && setShowImport(false)}>
+          <div role="dialog" aria-modal="true" aria-label="Review stock reconciliation" className="max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white shadow-healthcare-lg" onClick={event => event.stopPropagation()}>
+            <div className="flex items-center justify-between border-b border-surface-100 px-6 py-5"><div><h3 className="text-[15px] font-semibold text-surface-800">Review Stock Reconciliation</h3><p className="mt-1 text-[12px] text-surface-400">Only matched SKUs will be updated. Nothing changes until you apply this review.</p></div><button onClick={() => setShowImport(false)} className="rounded-lg p-1.5 text-surface-400 hover:bg-surface-100" aria-label="Close import review"><X className="h-4 w-4" /></button></div>
+            <div className="p-6">{importError && <p className="mb-3 rounded-xl border border-danger-200 bg-danger-50 px-3 py-2 text-[12px] font-medium text-danger-700">{importError}</p>}<div className="overflow-x-auto rounded-xl border border-surface-200"><table className="w-full text-left text-[12px]"><thead className="bg-surface-50 text-[10px] uppercase tracking-wider text-surface-400"><tr><th className="px-3 py-2">Item</th><th className="px-3 py-2">Current</th><th className="px-3 py-2">Imported</th><th className="px-3 py-2">Difference</th></tr></thead><tbody className="divide-y divide-surface-100">{importRows.map(row => <tr key={row.itemId}><td className="px-3 py-2.5 font-semibold text-surface-700">{row.name}</td><td className="px-3 py-2.5 text-surface-500">{row.currentQuantity}</td><td className="px-3 py-2.5 text-surface-700">{row.quantity}</td><td className={`px-3 py-2.5 font-semibold ${row.quantity === row.currentQuantity ? 'text-surface-400' : row.quantity > row.currentQuantity ? 'text-success-600' : 'text-danger-600'}`}>{row.quantity - row.currentQuantity > 0 ? '+' : ''}{row.quantity - row.currentQuantity}</td></tr>)}</tbody></table></div></div>
+            <div className="flex justify-end gap-2 border-t border-surface-100 px-6 py-4"><Button variant="secondary" onClick={() => setShowImport(false)} disabled={busy}>Cancel</Button><Button onClick={() => void applyImport()} disabled={busy || importRows.length === 0}>{busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}{busy ? 'Applying…' : 'Apply Reconciliation'}</Button></div>
+          </div>
+        </div>
+      )}
 
       {showAdd && (
         <div
