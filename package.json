@@ -16,7 +16,6 @@
     "lint": "npm run lint --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "db": "npm run cli -w @jioplix/db",
-    "smoke": "node scripts/smoke-test.mjs",
-    "postinstall": "npm run build -w @jioplix/contracts && npm run build -w @jioplix/db"
+    "smoke": "node scripts/smoke-test.mjs"
   }
 }
