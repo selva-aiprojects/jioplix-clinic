@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom'
 import {
   ArrowRight, BarChart3, CalendarDays, Check, ChevronRight, ClipboardPlus,
   FlaskConical, LockKeyhole, Pill, ShieldCheck, Sparkles, UsersRound, ReceiptText,
-  Baby, ScanFace, Fingerprint, HeartHandshake, Stethoscope,
+  Baby, ScanFace, Fingerprint, HeartHandshake, Stethoscope, Boxes, FileSpreadsheet,
 } from 'lucide-react'
 import BrandLogo from '../components/BrandLogo'
 
@@ -43,6 +43,12 @@ const aiWorkflowPoints = [
   'Workflow guidance for appointments, patients, prescriptions, Pharmacy, Laboratory, and User Management',
   'Clinician-led e-prescriptions with structured dosage, frequency, duration, issue, and print steps',
   'A foundation ready for AI-generated summaries and prescription suggestions with human approval',
+]
+
+const inventoryHighlights = [
+  { icon: FileSpreadsheet, title: 'Import and reconcile', text: 'Bring in Excel-compatible stock counts, review quantity differences, and apply tracked adjustments only after approval.' },
+  { icon: Boxes, title: 'Expiry-aware inventory', text: 'See clean Valid, Expiring Soon, and Expired badges across medicine, reagent, consumable, and supply batches.' },
+  { icon: ReceiptText, title: 'Documents when teams need them', text: 'Print stock invoice copies and delivery challans for receiving, handoff, audit, and supplier reconciliation.' },
 ]
 
 export default function Landing() {
@@ -96,6 +102,8 @@ export default function Landing() {
       <section id="why-jioplix" className="border-y border-surface-100 bg-white"><div className="mx-auto max-w-7xl px-5 py-16 lg:px-8"><p className="text-[11px] font-bold uppercase tracking-[.18em] text-primary-600">Built for outcomes, not busywork</p><h2 className="mt-3 max-w-2xl text-3xl font-bold tracking-tight text-surface-900 sm:text-4xl">One platform. Fewer handoffs. Better care.</h2><div className="mt-10 grid gap-5 md:grid-cols-3">{capabilities.map(({ icon: Icon, title, text }) => <article key={title} className="border-l-2 border-accent-300 pl-5"><Icon className="h-6 w-6 text-primary-600" /><h3 className="mt-5 text-[16px] font-bold text-surface-900">{title}</h3><p className="mt-2 text-[13px] leading-6 text-surface-500">{text}</p></article>)}</div></div></section>
 
       <section className="mx-auto max-w-7xl px-5 py-16 lg:px-8"><div className="grid gap-10 lg:grid-cols-[.8fr_1.2fr] lg:items-center"><div><p className="text-[11px] font-bold uppercase tracking-[.18em] text-accent-700">Connected by default</p><h2 className="mt-3 text-3xl font-bold tracking-tight text-surface-900">Every team sees the next right action.</h2><p className="mt-4 max-w-md text-[14px] leading-7 text-surface-600">From the first call to the final invoice, your teams work from the same patient story and the same source of truth.</p></div><div className="grid gap-3 sm:grid-cols-2">{workflows.map(({ icon: Icon, label, value }) => <div key={label} className="flex items-center gap-4 rounded-2xl border border-surface-200 bg-white p-5 shadow-sm"><div className="rounded-xl bg-primary-50 p-3"><Icon className="h-5 w-5 text-primary-600" /></div><div><p className="text-[12px] font-bold text-surface-900">{label}</p><p className="mt-1 text-[12px] text-surface-500">{value}</p></div></div>)}</div></div></section>
+
+      <section className="border-y border-surface-100 bg-surface-900 text-white"><div className="mx-auto max-w-7xl px-5 py-16 lg:px-8"><div className="grid gap-10 lg:grid-cols-[.75fr_1.25fr] lg:items-center"><div><p className="text-[11px] font-bold uppercase tracking-[.18em] text-accent-300">Inventory control for care teams</p><h2 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">Know what is on the shelf, what is expiring, and what needs proof.</h2><p className="mt-4 max-w-md text-[14px] leading-7 text-white/65">Keep Pharmacy, Laboratory, and clinical supplies reconciled with a single stock register, clear expiry signals, and documents ready for every handoff.</p><Link to="/login" className="mt-6 inline-flex items-center gap-2 text-[13px] font-bold text-accent-300 hover:text-white">See inventory in the demo <ArrowRight className="h-4 w-4" /></Link></div><div className="grid gap-3 sm:grid-cols-3">{inventoryHighlights.map(({ icon: Icon, title, text }) => <article key={title} className="rounded-2xl border border-white/10 bg-white/5 p-5"><Icon className="h-5 w-5 text-accent-300" /><h3 className="mt-5 text-[14px] font-bold">{title}</h3><p className="mt-2 text-[12px] leading-5 text-white/55">{text}</p></article>)}</div></div></div></section>
 
       <section className="border-y border-surface-100 bg-white"><div className="mx-auto max-w-7xl px-5 py-16 lg:px-8"><div className="max-w-2xl"><p className="text-[11px] font-bold uppercase tracking-[.18em] text-primary-600">One clinical thread</p><h2 className="mt-3 text-3xl font-bold tracking-tight text-surface-900 sm:text-4xl">From consultation to care completion.</h2><p className="mt-4 text-[14px] leading-7 text-surface-600">The details that matter do not disappear between departments. Jioplix keeps the prescription, pharmacy, and laboratory loop visible to the right people.</p></div><div className="mt-10 grid gap-4 md:grid-cols-3">{careModules.map(({ icon: Icon, name, accent, text }, index) => <article key={name} className="relative rounded-2xl border border-surface-200 bg-surface-50 p-5"><span className="absolute right-5 top-5 text-[11px] font-bold text-surface-300">0{index + 1}</span><div className={`inline-flex rounded-xl p-3 ${accent}`}><Icon className="h-5 w-5" /></div><h3 className="mt-5 text-[16px] font-bold text-surface-900">{name}</h3><p className="mt-2 text-[13px] leading-6 text-surface-500">{text}</p></article>)}</div></div></section>
 
