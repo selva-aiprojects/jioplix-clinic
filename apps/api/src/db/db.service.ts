@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common'
 import { Pool } from 'pg'
+import { pgConnectionOptions } from '@jioplix/db'
 import { drizzle, type NodePgDatabase, type NodePgQueryResultHKT } from 'drizzle-orm/node-postgres'
 import type { ExtractTablesWithRelations } from 'drizzle-orm'
 import type { PgTransaction } from 'drizzle-orm/pg-core'
@@ -17,10 +18,7 @@ export class DbService {
   readonly pool: Pool
 
   constructor() {
-    this.pool = new Pool({
-      connectionString: process.env.DATABASE_URL,
-      max: 10,
-    })
+    this.pool = new Pool({ ...pgConnectionOptions(process.env.DATABASE_URL), max: 10 })
   }
 
   async onModuleDestroy(): Promise<void> {

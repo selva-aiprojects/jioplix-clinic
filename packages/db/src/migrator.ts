@@ -15,22 +15,22 @@ const DEFAULT_ROLES: Array<{ key: string; name: string; permissions: string[] }>
   {
     key: 'clinic_admin',
     name: 'Clinic Admin',
-    permissions: ['patients:*', 'appointments:*', 'billing:*', 'reports:read', 'users:*'],
+    permissions: ['patients:*', 'appointments:*', 'invoices:*', 'payments:*', 'reports:read', 'users:*'],
   },
   {
     key: 'doctor',
     name: 'Doctor',
-    permissions: ['patients:read', 'patients:create', 'appointments:read', 'queue:read', 'emr:*', 'prescriptions:*', 'lab_orders:*', 'procedures:*'],
+    permissions: ['patients:read', 'patients:create', 'appointments:read', 'appointments:update', 'queue:read', 'encounters:*', 'vitals:*', 'diagnoses:*', 'prescriptions:*', 'lab_orders:*', 'procedures:*'],
   },
   {
     key: 'receptionist',
     name: 'Receptionist',
-    permissions: ['patients:*', 'appointments:*', 'queue:*', 'billing:create', 'payments:collect'],
+    permissions: ['patients:*', 'appointments:*', 'queue:*', 'encounters:create', 'encounters:read', 'vitals:create', 'invoices:*', 'payments:*'],
   },
-  { key: 'nurse', name: 'Nurse / Assistant', permissions: ['patients:read', 'queue:*', 'procedures:execute', 'vitals:*'] },
+  { key: 'nurse', name: 'Nurse / Assistant', permissions: ['patients:read', 'queue:*', 'procedures:execute', 'vitals:*', 'encounters:read', 'vitals:create'] },
   { key: 'pharmacist', name: 'Pharmacist', permissions: ['pharmacy:*', 'inventory:read', 'inventory:adjust'] },
   { key: 'lab_technician', name: 'Lab Technician', permissions: ['lab:*', 'inventory:read'] },
-  { key: 'accountant', name: 'Accountant', permissions: ['billing:*', 'payments:*', 'reports:read'] },
+  { key: 'accountant', name: 'Accountant', permissions: ['invoices:*', 'payments:*', 'reports:read'] },
 ]
 
 function migrationDir(kind: 'global' | 'tenant'): string {

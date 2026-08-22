@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common'
 import { desc, eq, sql } from 'drizzle-orm'
 import { DbService, type TenantDb } from '../db/db.service.js'
 import { newId } from '@jioplix/contracts'
@@ -172,7 +172,7 @@ export class PrescriptionsService {
         cancelled: [],
       }
       if (!allowed[current.status]?.includes(next)) {
-        throw new BadRequestException('INVALID_TRANSITION')
+        throw new ConflictException('INVALID_TRANSITION')
       }
 
       const [row] = await db

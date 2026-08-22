@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common'
 import { and, desc, eq, inArray, sql } from 'drizzle-orm'
 import { DbService, type TenantTx } from '../db/db.service.js'
 import { newId } from '@jioplix/contracts'
@@ -214,7 +214,7 @@ export class EncountersService {
     return this.db.withTenant(schemaName, async (db) => {
       const [current] = await db.select().from(encounters).where(eq(encounters.id, id)).limit(1)
       if (!current) throw new NotFoundException('ENCOUNTER_NOT_FOUND')
-      if (current.isLocked) throw new BadRequestException('ENCOUNTER_SIGNED')
+      if (current.isLocked) throw new ConflictException('ENCOUNTER_SIGNED')
 
       const [row] = await db
         .update(encounters)
@@ -310,7 +310,7 @@ export class EncountersService {
     return this.db.withTenant(schemaName, async (db) => {
       const [current] = await db.select().from(encounters).where(eq(encounters.id, id)).limit(1)
       if (!current) throw new NotFoundException('ENCOUNTER_NOT_FOUND')
-      if (current.isLocked) throw new BadRequestException('ENCOUNTER_SIGNED')
+      if (current.isLocked) throw new ConflictException('ENCOUNTER_SIGNED')
 
       const [row] = await db
         .update(encounters)

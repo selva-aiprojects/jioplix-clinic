@@ -1,6 +1,7 @@
 import { join } from 'node:path'
 import { Pool } from 'pg'
 import { initGlobal, listTenants, migrateAllTenants, provisionTenant } from './migrator.js'
+import { pgConnectionOptions } from './pg-config.js'
 import { DEMO_CLINIC_TYPES, seedDemoData } from './demo.js'
 
 function loadEnv(): void {
@@ -47,7 +48,7 @@ async function main(): Promise<void> {
     process.exit(1)
   }
 
-  const pool = new Pool({ connectionString: databaseUrl, max: 4 })
+  const pool = new Pool({ ...pgConnectionOptions(databaseUrl), max: 4 })
 
   try {
     switch (cmd) {

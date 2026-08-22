@@ -24,7 +24,16 @@ const PORT = 3100
 const BASE = `http://localhost:${PORT}/api/v1`
 const DEMO_PW = 'demo1234'
 
-const pgPool = new Pool({ connectionString: DATABASE_URL, ssl: { rejectUnauthorized: false } })
+function pgConnectionOptions(connectionString) {
+  const url = new URL(connectionString)
+  const mode = url.searchParams.get('sslmode')
+  url.searchParams.delete('sslmode')
+  if (mode === 'verify-ca' || mode === 'verify-full') {
+    return { connectionString: url.toString(), ssl: { rejectUnauthorized: true } }
+  }
+  return { connectionString: url.toString(), ssl: { rejectUnauthorized: false } }
+}
+const pgPool = new Pool(pgConnectionOptions(DATABASE_URL))
 const psql = async (sql) => {
   const client = await pgPool.connect()
   try {
@@ -39,13 +48,13 @@ const psql = async (sql) => {
   }
 }
 
+const schemaBySlug = async (slug) => await psql(`SELECT schema_name FROM public.tenants WHERE slug='${slug}'`)
+
 const tenantSchemas = async () =>
   (await psql("SELECT schema_name FROM public.tenants WHERE status='active'"))
     .split(/\r?\n/)
     .map((s) => s.trim())
     .filter(Boolean)
-
-const schemaBySlug = async (slug) => await psql(`SELECT schema_name FROM public.tenants WHERE slug='${slug}'`)
 
 async function check(name, fn) {
   try {
@@ -432,12 +441,246 @@ await check('APPT-4  Unknown patient -> PATIENT_NOT_FOUND', async () => {
   assert(status === 404 && body.error?.code === 'PATIENT_NOT_FOUND', JSON.stringify(body))
 })
 
+// ---------- M2: encounters / prescriptions / billing ----------
+const m2 = {}
+
+await check('M2-0    Smoke patient created in nova', async () => {
+  const s = await login('nova', '+919800000201')
+  const { status, body } = await req('/patients', {
+    method: 'POST',
+    headers: { ...bearer(s), 'content-type': 'application/json' },
+    body: JSON.stringify({ firstName: 'SmokeM2', lastName: 'Test', phone: '+919999666666', gender: 'F' }),
+  })
+  assert(status < 300, `got ${status}: ${JSON.stringify(body)}`)
+  m2.patientId = body.data.id
+})
+
+await check('ENC-1   Doctor starts encounter from appointment', async () => {
+  const receptionist = await login('nova', '+919800000201')
+  m2.doctorId = await psql(`SELECT id FROM ${novaSchema}.users WHERE full_name LIKE 'Dr.%' LIMIT 1`)
+  const appt = await req('/appointments', {
+    method: 'POST',
+    headers: { ...bearer(receptionist), 'content-type': 'application/json' },
+    body: JSON.stringify({
+      patientId: m2.patientId,
+      doctorId: m2.doctorId,
+      scheduledAt: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+      source: 'walk_in',
+      notes: 'SMOKE_TEST',
+    }),
+  })
+  assert(appt.status < 300, `appointment failed: ${JSON.stringify(appt.body)}`)
+  await req(`/appointments/${appt.body.data.id}/status`, {
+    method: 'PATCH',
+    headers: { ...bearer(receptionist), 'content-type': 'application/json' },
+    body: JSON.stringify({ status: 'checked_in' }),
+  })
+
+  const doctor = await login('nova', '+919800000101')
+  const enc = await req('/encounters', {
+    method: 'POST',
+    headers: { ...bearer(doctor), 'content-type': 'application/json' },
+    body: JSON.stringify({
+      appointmentId: appt.body.data.id,
+      patientId: m2.patientId,
+      doctorId: m2.doctorId,
+      chiefComplaint: 'SMOKE_TEST fever x2 days',
+    }),
+  })
+  assert(enc.status < 300, `got ${enc.status}: ${JSON.stringify(enc.body)}`)
+  assert(enc.body.data.isLocked === false, 'new encounter must not be locked')
+  m2.encounterId = enc.body.data.id
+})
+
+await check('ENC-2   Vitals recorded with BMI computed', async () => {
+  const s = await login('nova', '+919800000101')
+  const { status, body } = await req(`/encounters/${m2.encounterId}/vitals`, {
+    method: 'POST',
+    headers: { ...bearer(s), 'content-type': 'application/json' },
+    body: JSON.stringify({ bpSystolic: 120, bpDiastolic: 80, pulse: 78, spo2: 98, weightKg: 80, heightCm: 170 }),
+  })
+  assert(status < 300, `got ${status}: ${JSON.stringify(body)}`)
+  const bmi = body.data.bmi
+  assert(typeof bmi === 'number' && Math.abs(bmi - 80 / 1.7 ** 2) < 0.1, `bad bmi: ${bmi}`)
+})
+
+await check('ENC-3   Diagnosis added (ICD-10)', async () => {
+  const s = await login('nova', '+919800000101')
+  const { status, body } = await req(`/encounters/${m2.encounterId}/diagnoses`, {
+    method: 'POST',
+    headers: { ...bearer(s), 'content-type': 'application/json' },
+    body: JSON.stringify({ icd10Code: 'R50.9', icd10Name: 'Fever, unspecified', type: 'primary' }),
+  })
+  assert(status < 300 && body.data.icd10Code === 'R50.9', `got ${status}: ${JSON.stringify(body)}`)
+})
+
+await check('RX-1    Prescription draft -> item -> issue -> invalid transition 409', async () => {
+  const s = await login('nova', '+919800000101')
+  const rx = await req('/prescriptions', {
+    method: 'POST',
+    headers: { ...bearer(s), 'content-type': 'application/json' },
+    body: JSON.stringify({ encounterId: m2.encounterId, patientId: m2.patientId }),
+  })
+  assert(rx.status < 300 && rx.body.data.status === 'draft', `got ${rx.status}: ${JSON.stringify(rx.body)}`)
+  m2.prescriptionId = rx.body.data.id
+
+  const item = await req(`/prescriptions/${m2.prescriptionId}/items`, {
+    method: 'POST',
+    headers: { ...bearer(s), 'content-type': 'application/json' },
+    body: JSON.stringify({
+      drugName: 'Paracetamol',
+      strength: '650mg',
+      form: 'tablet',
+      dosage: '1 tablet',
+      frequency: 'TDS',
+      route: 'oral',
+      durationDays: 3,
+      quantity: 9,
+    }),
+  })
+  assert(item.status < 300, `item failed: ${JSON.stringify(item.body)}`)
+
+  const issue = await req(`/prescriptions/${m2.prescriptionId}/status`, {
+    method: 'PATCH',
+    headers: { ...bearer(s), 'content-type': 'application/json' },
+    body: JSON.stringify({ status: 'issued' }),
+  })
+  assert(issue.status === 200 && issue.body.data.status === 'issued', JSON.stringify(issue.body))
+
+  const illegal = await req(`/prescriptions/${m2.prescriptionId}/status`, {
+    method: 'PATCH',
+    headers: { ...bearer(s), 'content-type': 'application/json' },
+    body: JSON.stringify({ status: 'draft' }),
+  })
+  assert(illegal.status === 409 && illegal.body.error?.code === 'INVALID_TRANSITION', JSON.stringify(illegal.body))
+})
+
+await check('ENC-4   Lock encounter -> further updates rejected (ENCOUNTER_SIGNED)', async () => {
+  const s = await login('nova', '+919800000101')
+  const lock = await req(`/encounters/${m2.encounterId}/lock`, { method: 'POST', headers: bearer(s) })
+  assert(lock.status === 200 && lock.body.data.isLocked === true, JSON.stringify(lock.body))
+
+  const patch = await req(`/encounters/${m2.encounterId}`, {
+    method: 'PATCH',
+    headers: { ...bearer(s), 'content-type': 'application/json' },
+    body: JSON.stringify({ clinicalNotes: 'tamper' }),
+  })
+  assert(patch.status === 409 && patch.body.error?.code === 'ENCOUNTER_SIGNED', JSON.stringify(patch.body))
+})
+
+await check('ENC-5   Patient timeline + prescriptions-by-encounter lists', async () => {
+  const s = await login('nova', '+919800000101')
+  const timeline = await req(`/patients/${m2.patientId}/encounters`, { headers: bearer(s) })
+  assert(timeline.status === 200, `got ${timeline.status}`)
+  assert(
+    timeline.body.data.some((e) => e.id === m2.encounterId),
+    'encounter missing from patient timeline',
+  )
+
+  const rxs = await req(`/prescriptions?encounterId=${m2.encounterId}`, { headers: bearer(s) })
+  assert(rxs.status === 200, `got ${rxs.status}: ${JSON.stringify(rxs.body)}`)
+  const rx = rxs.body.data.find((p) => p.id === m2.prescriptionId)
+  assert(rx, 'prescription missing from encounter list')
+  assert(Array.isArray(rx.items) && rx.items.length === 1, 'prescription items not embedded')
+})
+
+await check('ISO-3   Cross-tenant encounter read -> 404', async () => {
+  const s = await login('sunrise', '+919800000101')
+  const { status, body } = await req(`/encounters/${m2.encounterId}`, { headers: bearer(s) })
+  assert(status === 404 && body.error?.code === 'ENCOUNTER_NOT_FOUND', JSON.stringify(body))
+})
+
+await check('RBAC-4  Pharmacist denied encounter creation', async () => {
+  const s = await login('nova', '+919800000202')
+  const { status, body } = await req('/encounters', {
+    method: 'POST',
+    headers: { ...bearer(s), 'content-type': 'application/json' },
+    body: JSON.stringify({ patientId: m2.patientId, doctorId: m2.doctorId }),
+  })
+  assert(status === 403 && body.error?.code === 'PERMISSION_DENIED', JSON.stringify(body))
+})
+
+await check('BILL-1  Invoice created with GST math (50000 -> cgst/sgst 4500 each)', async () => {
+  const s = await login('nova', '+919800000201')
+  const inv = await req('/invoices', {
+    method: 'POST',
+    headers: { ...bearer(s), 'content-type': 'application/json' },
+    body: JSON.stringify({
+      encounterId: m2.encounterId,
+      patientId: m2.patientId,
+      lines: [
+        {
+          itemType: 'consultation',
+          itemName: 'General Consultation',
+          quantity: 1,
+          unitPricePaise: 50000,
+          cgstRate: 9,
+          sgstRate: 9,
+        },
+      ],
+      discountPaise: 0,
+    }),
+  })
+  assert(inv.status < 300, `got ${inv.status}: ${JSON.stringify(inv.body)}`)
+  const d = inv.body.data
+  assert(d.subTotalPaise === 50000, `subtotal: ${d.subTotalPaise}`)
+  assert(d.cgstPaise === 4500 && d.sgstPaise === 4500, `tax: ${d.cgstPaise}/${d.sgstPaise}`)
+  assert(d.totalPaise === 59000, `total: ${d.totalPaise}`)
+  assert(d.balancePaise === 59000 && d.status === 'issued', `status: ${d.status}/${d.balancePaise}`)
+  assert(/^INV-\d{8}-\d+$/.test(d.invoiceNo ?? ''), `bad invoiceNo: ${d.invoiceNo}`)
+  m2.invoiceId = d.id
+})
+
+await check('BILL-2  Partial then full payment -> balance 0, status paid', async () => {
+  const s = await login('nova', '+919800000201')
+  const p1 = await req(`/invoices/${m2.invoiceId}/payments`, {
+    method: 'POST',
+    headers: { ...bearer(s), 'content-type': 'application/json' },
+    body: JSON.stringify({ invoiceId: m2.invoiceId, amountPaise: 20000, mode: 'upi', reference: 'SMOKE_TEST' }),
+  })
+  assert(p1.status < 300 && p1.body.data.balancePaise === 39000 && p1.body.data.status === 'partial',
+    JSON.stringify(p1.body))
+
+  const p2 = await req(`/invoices/${m2.invoiceId}/payments`, {
+    method: 'POST',
+    headers: { ...bearer(s), 'content-type': 'application/json' },
+    body: JSON.stringify({ invoiceId: m2.invoiceId, amountPaise: 39000, mode: 'cash' }),
+  })
+  assert(p2.status < 300 && p2.body.data.balancePaise === 0 && p2.body.data.status === 'paid',
+    JSON.stringify(p2.body))
+})
+
+await check('BILL-3  Patient outstanding total is zero after settlement', async () => {
+  const s = await login('nova', '+919800000201')
+  const { status, body } = await req(`/invoices/patient/${m2.patientId}/outstanding`, { headers: bearer(s) })
+  assert(status === 200 && Number(body.data.outstandingPaise) === 0, JSON.stringify(body))
+})
+
 if (apiProcess) {
   apiProcess.kill()
 }
 
 await check('CLEAN-1  Smoke-test rows removed from all tenant schemas', async () => {
   for (const s of await tenantSchemas()) {
+    await psql(`
+      DELETE FROM ${s}.payments WHERE invoice_id IN (
+        SELECT id FROM ${s}.invoices WHERE patient_id IN (SELECT id FROM ${s}.patients WHERE phone LIKE '+919999%'))
+    `)
+    await psql(`DELETE FROM ${s}.invoices WHERE patient_id IN (SELECT id FROM ${s}.patients WHERE phone LIKE '+919999%')`)
+    await psql(`
+      DELETE FROM ${s}.prescription_items WHERE prescription_id IN (
+        SELECT id FROM ${s}.prescriptions WHERE patient_id IN (SELECT id FROM ${s}.patients WHERE phone LIKE '+919999%'))
+    `)
+    await psql(`DELETE FROM ${s}.prescriptions WHERE patient_id IN (SELECT id FROM ${s}.patients WHERE phone LIKE '+919999%')`)
+    await psql(`
+      DELETE FROM ${s}.encounter_diagnoses WHERE encounter_id IN (
+        SELECT id FROM ${s}.encounters WHERE patient_id IN (SELECT id FROM ${s}.patients WHERE phone LIKE '+919999%'))
+    `)
+    await psql(`
+      DELETE FROM ${s}.vitals WHERE encounter_id IN (
+        SELECT id FROM ${s}.encounters WHERE patient_id IN (SELECT id FROM ${s}.patients WHERE phone LIKE '+919999%'))
+    `)
+    await psql(`DELETE FROM ${s}.encounters WHERE patient_id IN (SELECT id FROM ${s}.patients WHERE phone LIKE '+919999%')`)
     await psql(`DELETE FROM ${s}.queue_tokens WHERE appointment_id IN (SELECT id FROM ${s}.appointments WHERE notes='SMOKE_TEST')`)
     await psql(`DELETE FROM ${s}.appointments WHERE notes='SMOKE_TEST'`)
     await psql(`DELETE FROM ${s}.patients WHERE phone LIKE '+919999%'`)

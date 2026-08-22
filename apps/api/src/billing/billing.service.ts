@@ -135,7 +135,8 @@ export class BillingService {
           roundOffPaise: roundOff,
           totalPaise: finalTotal,
           balancePaise: finalTotal,
-          status: 'draft',
+          status: 'issued',
+          issuedAt: new Date(),
           createdBy: actorUserId,
           updatedBy: actorUserId,
         })

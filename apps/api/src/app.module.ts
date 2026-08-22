@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common'
 import { APP_GUARD } from '@nestjs/core'
 import { HealthController } from './health/health.controller.js'
-import { DbService } from './db/db.service.js'
+import { DbModule } from './db/db.module.js'
 import { TenantGuard } from './tenancy/tenant.guard.js'
 import { PatientsController } from './patients/patients.controller.js'
 import { PatientsService } from './patients/patients.service.js'
@@ -19,7 +19,6 @@ import { AuditModule } from './common/audit.module.js'
 @Module({
   controllers: [HealthController, PatientsController, AppointmentsController, AuthController],
   providers: [
-    DbService,
     TenantGuard,
     PatientsService,
     AppointmentsService,
@@ -27,6 +26,6 @@ import { AuditModule } from './common/audit.module.js'
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: PermissionsGuard },
   ],
-  imports: [EncountersModule, PrescriptionsModule, BillingModule, AuditModule],
+  imports: [DbModule, EncountersModule, PrescriptionsModule, BillingModule, AuditModule],
 })
 export class AppModule {}
