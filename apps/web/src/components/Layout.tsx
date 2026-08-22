@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Outlet } from 'react-router-dom'
 import Sidebar from './Sidebar'
 import TopBar from './TopBar'
+import Chatbot from './Chatbot'
 
 export default function Layout() {
   const [collapsed, setCollapsed] = useState(false)
@@ -19,6 +20,7 @@ export default function Layout() {
       {mobileOpen && (
         <div className="fixed inset-0 bg-black/30 z-30 md:hidden" onClick={() => setMobileOpen(false)} />
       )}
+      <Chatbot />
     </div>
   )
 }

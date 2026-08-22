@@ -78,6 +78,7 @@ export default function TopBar({ onMenuToggle }: TopBarProps) {
       <div className="flex items-center gap-2 ml-auto">
         {/* AI Clinical Assistant */}
         <button
+          onClick={() => window.dispatchEvent(new CustomEvent('jioplix:open-assistant'))}
           className="hidden md:flex items-center gap-2 px-3.5 py-2 rounded-xl bg-gradient-to-r from-primary-50 via-primary-100/60 to-accent-50 border border-primary-200/70 text-primary-800 hover:from-primary-100 hover:to-accent-100 transition-all text-[12px] font-semibold shadow-xs cursor-pointer"
           title="Clinical AI Assistant"
         >
