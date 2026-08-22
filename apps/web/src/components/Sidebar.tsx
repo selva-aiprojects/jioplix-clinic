@@ -135,8 +135,8 @@ export default function Sidebar({ collapsed, mobileOpen, onToggle, onMobileClose
           collapsed ? 'w-[72px]' : 'w-[260px]'
         }`}
       >
-        <div className={`flex items-center h-16 border-b border-surface-100 shrink-0 bg-white/50 backdrop-blur-sm ${collapsed ? 'justify-center px-2' : 'px-5'}`}>
-          <BrandLogo collapsed={collapsed} size="md" />
+        <div className={`flex items-center ${collapsed ? 'h-20 justify-center px-2' : 'h-20 px-5'} border-b border-surface-100 shrink-0 bg-white/50 backdrop-blur-sm`}>
+          <BrandLogo collapsed={collapsed} size="lg" />
         </div>
 
         <nav className={`flex-1 py-3 px-3 overflow-y-auto scrollbar-thin ${collapsed ? 'space-y-0' : ''}`}>

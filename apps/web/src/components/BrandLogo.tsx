@@ -26,7 +26,7 @@ export default function BrandLogo({
   if (collapsed) {
     return (
       <div className={`flex items-center justify-center ${className}`} title="Jioplix">
-        <div className="w-11 h-11 rounded-xl bg-white border border-surface-200 shadow-sm flex items-center justify-center p-2 transition-all hover:scale-105 hover:border-primary-300 hover:shadow-healthcare">
+        <div className="w-14 h-14 rounded-2xl bg-primary-50 border border-primary-100 shadow-sm flex items-center justify-center p-2.5 transition-all hover:scale-105 hover:border-primary-300 hover:shadow-healthcare">
           <img src="/favicon.png" alt="Jioplix" className="w-full h-full object-contain" />
         </div>
       </div>
