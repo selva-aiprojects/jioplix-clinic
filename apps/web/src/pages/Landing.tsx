@@ -43,7 +43,7 @@ export default function Landing() {
   return (
     <main className="min-h-screen overflow-hidden bg-[#f7fbff] text-surface-800">
       <nav className="mx-auto flex max-w-7xl items-center justify-between px-5 py-5 lg:px-8">
-        <BrandLogo size="lg" />
+        <BrandLogo variant="pure" size="3xl" className="origin-left scale-[1.35] sm:scale-100" />
         <div className="flex items-center gap-3">
           <Link to="/login" className="hidden px-3 py-2 text-[13px] font-semibold text-surface-600 hover:text-primary-700 sm:block">Sign in</Link>
           <Link to="/login" className="inline-flex items-center gap-2 rounded-xl bg-primary-600 px-4 py-2.5 text-[13px] font-bold text-white shadow-healthcare hover:bg-primary-700">
