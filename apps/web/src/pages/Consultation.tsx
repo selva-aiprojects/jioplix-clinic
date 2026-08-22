@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import {
   Stethoscope, ClipboardList, Pill, FileText,
   ArrowRight, CheckCircle2, Sparkles, AlertTriangle,
-  Plus, Activity, Lock, Save, Ban, CalendarClock,
+  Plus, Activity, Lock, Save, Ban, CalendarClock, Printer,
 } from 'lucide-react'
 import { PageHeader, Button } from '../components/ui'
 import {
@@ -186,6 +186,25 @@ export default function Consultation() {
       await updatePrescriptionStatus(rx.id, 'issued')
       await refreshRx(encounter!.id)
     }, 'Prescription issued')
+
+  function printPrescription() {
+    if (!currentRx || currentRx.items.length === 0) return
+    const printWindow = window.open('', '_blank', 'width=800,height=900')
+    if (!printWindow) return
+    const items = currentRx.items.map(item => `
+      <tr>
+        <td>${item.drugName}${item.strength ? ` ${item.strength}` : ''}</td>
+        <td>${item.dosage}</td>
+        <td>${item.frequency}</td>
+        <td>${item.durationDays ? `${item.durationDays} days` : '-'}</td>
+      </tr>`).join('')
+    printWindow.document.write(`<!doctype html><html><head><title>Prescription - ${currentRx.patientName}</title><style>
+      body{font-family:Arial,sans-serif;color:#10234a;margin:48px;line-height:1.5}header{display:flex;justify-content:space-between;border-bottom:2px solid #1265e8;padding-bottom:18px}h1{font-size:24px;margin:0}h2{font-size:18px;margin:28px 0 8px}p{margin:4px 0;color:#475569;font-size:13px}.meta{text-align:right}table{border-collapse:collapse;width:100%;margin-top:12px;font-size:13px}th,td{text-align:left;border-bottom:1px solid #e2e8f0;padding:11px 8px}th{background:#f6f9fc;color:#475569;font-size:11px;text-transform:uppercase}footer{border-top:1px solid #e2e8f0;margin-top:48px;padding-top:14px;color:#64748b;font-size:11px}@media print{body{margin:24px}}
+    </style></head><body><header><div><h1>Jioplix</h1><p>Digital Prescription</p></div><div class="meta"><p><strong>Doctor</strong><br>${encounter?.doctorName ?? currentRx.doctorName}</p><p>${new Date(currentRx.createdAt).toLocaleDateString()}</p></div></header><h2>Patient</h2><p><strong>${currentRx.patientName}</strong></p><p>Prescription status: ${currentRx.status}</p><h2>Medication</h2><table><thead><tr><th>Medicine</th><th>Dosage</th><th>Frequency</th><th>Duration</th></tr></thead><tbody>${items}</tbody></table><footer>Issued through Jioplix Clinical Workspace. Please follow your doctor&apos;s instructions.</footer></body></html>`)
+    printWindow.document.close()
+    printWindow.focus()
+    printWindow.print()
+  }
 
   const signAndClose = () =>
     run(async () => {
@@ -424,11 +443,18 @@ export default function Consultation() {
               <div className="flex items-center justify-between mb-3">
                 <label className="text-[13px] font-semibold text-surface-700">Prescription</label>
                 {currentRx && (
+                  <div className="flex items-center gap-2">
+                  {currentRx.items.length > 0 && (
+                    <button onClick={printPrescription} className="inline-flex items-center gap-1 rounded-lg border border-surface-200 px-2.5 py-1 text-[11px] font-semibold text-surface-600 hover:bg-surface-50">
+                      <Printer className="h-3.5 w-3.5" /> Print
+                    </button>
+                  )}
                   <span className={`px-2 py-0.5 rounded-md text-[11px] font-semibold uppercase ${
                     currentRx.status === 'issued' || currentRx.status === 'dispensed'
                       ? 'bg-success-50 text-success-700 border border-success-200'
                       : 'bg-warning-50 text-warning-700 border border-warning-200'
                   }`}>{currentRx.status}</span>
+                  </div>
                 )}
               </div>
 
