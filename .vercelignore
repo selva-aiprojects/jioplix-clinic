@@ -3,7 +3,6 @@ node_modules
 dist
 dist-ssr
 apps/api
-packages
 docker-compose.yml
 .env*
 .pgdata/
