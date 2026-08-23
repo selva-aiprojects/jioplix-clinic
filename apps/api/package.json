@@ -4,6 +4,7 @@
   "version": "0.1.0",
   "scripts": {
     "dev": "nodemon --watch src --ignore dist --exec \"tsc && node dist/main.js\" --ext ts",
+    "prebuild": "npm run build --workspace @jioplix/contracts --workspace @jioplix/db",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/main.js",
     "typecheck": "tsc --noEmit -p tsconfig.json"
