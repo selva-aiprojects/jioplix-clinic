@@ -20,12 +20,12 @@ const DEFAULT_ROLES: Array<{ key: string; name: string; permissions: string[] }>
   {
     key: 'doctor',
     name: 'Doctor',
-    permissions: ['patients:read', 'patients:create', 'appointments:read', 'appointments:update', 'queue:read', 'encounters:*', 'vitals:*', 'diagnoses:*', 'prescriptions:*', 'lab_orders:*', 'procedures:*'],
+    permissions: ['patients:read', 'patients:create', 'appointments:read', 'appointments:update', 'queue:read', 'encounters:*', 'vitals:*', 'diagnoses:*', 'prescriptions:*', 'lab_orders:*', 'procedures:*', 'inventory:read', 'invoices:read'],
   },
   {
     key: 'receptionist',
     name: 'Receptionist',
-    permissions: ['patients:*', 'appointments:*', 'queue:*', 'encounters:create', 'encounters:read', 'vitals:create', 'invoices:*', 'payments:*', 'inventory:read', 'procedures:create'],
+    permissions: ['patients:*', 'appointments:*', 'queue:*', 'encounters:create', 'encounters:read', 'vitals:create', 'invoices:*', 'payments:*', 'inventory:read', 'procedures:create', 'prescriptions:read', 'lab_orders:read', 'procedures:read'],
   },
   { key: 'nurse', name: 'Nurse / Assistant', permissions: ['patients:read', 'queue:*', 'procedures:execute', 'vitals:*', 'encounters:read', 'vitals:create'] },
   { key: 'pharmacist', name: 'Pharmacist', permissions: ['pharmacy:*', 'prescriptions:read', 'prescriptions:update', 'inventory:read', 'inventory:create', 'inventory:adjust', 'invoices:read'] },

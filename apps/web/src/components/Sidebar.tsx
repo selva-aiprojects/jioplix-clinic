@@ -58,10 +58,10 @@ const navGroups: { title: string; items: NavItem[] }[] = [
   {
     title: 'Add-ons',
     items: [
-      { to: '/pharmacy', icon: Pill, label: 'Pharmacy', color: 'text-info-600', addon: true },
-      { to: '/laboratory', icon: FlaskConical, label: 'Laboratory', color: 'text-danger-500', addon: true },
-      { to: '/inventory', icon: Warehouse, label: 'Inventory', color: 'text-accent-600', addon: true },
-      { to: '/procedures', icon: Bandage, label: 'Procedures', color: 'text-success-600', addon: true },
+      { to: '/pharmacy', icon: Pill, label: 'Pharmacy', color: 'text-info-600', addon: true, permission: 'prescriptions:read' },
+      { to: '/laboratory', icon: FlaskConical, label: 'Laboratory', color: 'text-danger-500', addon: true, permission: 'lab_orders:read' },
+      { to: '/inventory', icon: Warehouse, label: 'Inventory', color: 'text-accent-600', addon: true, permission: 'inventory:read' },
+      { to: '/procedures', icon: Bandage, label: 'Procedures', color: 'text-success-600', addon: true, permission: 'procedures:read' },
       { to: '/addons', icon: Puzzle, label: 'Plans & Add-ons', color: 'text-primary-600' },
       { to: '/users', icon: UserCog, label: 'User Management', color: 'text-primary-600' },
     ],
