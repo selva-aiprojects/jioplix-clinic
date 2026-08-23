@@ -81,6 +81,112 @@ const APPOINTMENT_FLOW = [
   { hour: 12, status: 'scheduled', queueStatus: 'waiting', source: 'phone' },
 ] as const
 
+interface InventorySeedItem {
+  name: string
+  category: 'medicines' | 'consumables' | 'dental_materials' | 'clinic_supplies' | 'equipment'
+  unit: string
+  qty: number
+  reorder: number
+  pricePaise: number
+  supplier: string
+  batch: string
+  expiresInDays?: number
+}
+
+// Baseline general-medicine stock every clinic keeps on hand.
+const GENERAL_INVENTORY: InventorySeedItem[] = [
+  { name: 'Paracetamol 650mg Tablet (Strip of 10)', category: 'medicines', unit: 'strips', qty: 240, reorder: 60, pricePaise: 1500, supplier: 'Cipla', batch: 'PCM-26A1', expiresInDays: 500 },
+  { name: 'Ibuprofen 400mg Tablet (Strip of 10)', category: 'medicines', unit: 'strips', qty: 150, reorder: 40, pricePaise: 1800, supplier: 'Sun Pharma', batch: 'IBU-2604', expiresInDays: 420 },
+  { name: 'Cetirizine 10mg Tablet (Strip of 10)', category: 'medicines', unit: 'strips', qty: 200, reorder: 50, pricePaise: 1200, supplier: "Dr Reddy's", batch: 'CTZ-2612', expiresInDays: 480 },
+  { name: 'Amoxicillin 500mg Capsule (Strip of 10)', category: 'medicines', unit: 'strips', qty: 120, reorder: 30, pricePaise: 2400, supplier: 'Cipla', batch: 'AMX-2606', expiresInDays: 300 },
+  { name: 'Omeprazole 20mg Capsule (Strip of 10)', category: 'medicines', unit: 'strips', qty: 90, reorder: 30, pricePaise: 1800, supplier: 'Zydus', batch: 'OMP-2610', expiresInDays: 430 },
+  { name: 'Azithromycin 500mg Tablet (Strip of 3)', category: 'medicines', unit: 'strips', qty: 60, reorder: 20, pricePaise: 4800, supplier: 'Abbott', batch: 'AZT-2608', expiresInDays: 350 },
+  { name: 'ORS Powder Sachet (21.8g)', category: 'medicines', unit: 'sachets', qty: 300, reorder: 80, pricePaise: 2000, supplier: 'FDC', batch: 'ORS-2603', expiresInDays: 220 },
+  { name: 'Diclofenac Gel 1% (30g)', category: 'medicines', unit: 'tubes', qty: 45, reorder: 15, pricePaise: 9500, supplier: 'Novartis', batch: 'DCF-2611', expiresInDays: 450 },
+  { name: 'Nitrile Examination Gloves (Box of 100)', category: 'consumables', unit: 'boxes', qty: 25, reorder: 10, pricePaise: 45000, supplier: 'Medline', batch: 'GLV-2602' },
+  { name: 'Disposable Syringe 5ml (Box of 100)', category: 'consumables', unit: 'boxes', qty: 20, reorder: 8, pricePaise: 35000, supplier: 'Dispovan', batch: 'SYR-2802', expiresInDays: 550 },
+  { name: 'Sterile Gauze Pads (Pack of 10)', category: 'consumables', unit: 'packs', qty: 60, reorder: 20, pricePaise: 8500, supplier: 'Datt Mediphans', batch: 'GAZ-2901', expiresInDays: 900 },
+  { name: 'Surgical Face Mask 3-Ply (Box of 50)', category: 'consumables', unit: 'boxes', qty: 30, reorder: 10, pricePaise: 25000, supplier: 'Romsons', batch: 'MSK-2705', expiresInDays: 630 },
+  { name: 'Povidone-Iodine Solution 100ml', category: 'consumables', unit: 'bottles', qty: 12, reorder: 15, pricePaise: 12000, supplier: 'Win-Medicare', batch: 'PID-2707', expiresInDays: 330 },
+]
+
+// Specialty additions layered on top of the baseline per clinic type.
+const SPECIALTY_INVENTORY: Record<string, InventorySeedItem[]> = {
+  pediatric: [
+    { name: 'Paracetamol Syrup 100mg/ml (60ml)', category: 'medicines', unit: 'bottles', qty: 80, reorder: 25, pricePaise: 4500, supplier: 'GSK', batch: 'PCS-2704', expiresInDays: 320 },
+    { name: 'Ibuprofen Suspension 100mg/5ml (60ml)', category: 'medicines', unit: 'bottles', qty: 60, reorder: 20, pricePaise: 5200, supplier: 'Wockhardt', batch: 'IBS-26A5', expiresInDays: 48 },
+    { name: 'Amoxicillin Dry Syrup 125mg/5ml', category: 'medicines', unit: 'bottles', qty: 40, reorder: 15, pricePaise: 6800, supplier: 'Cipla', batch: 'AMD-2702', expiresInDays: 160 },
+    { name: 'Vitamin D3 Drops 60000 IU (15ml)', category: 'medicines', unit: 'bottles', qty: 35, reorder: 12, pricePaise: 28000, supplier: 'Sanofi', batch: 'VTD-2709', expiresInDays: 410 },
+    { name: 'Calcium + Vitamin D3 Syrup (200ml)', category: 'medicines', unit: 'bottles', qty: 28, reorder: 30, pricePaise: 16500, supplier: 'Zydus', batch: 'CAD-26B7', expiresInDays: 74 },
+    { name: 'Vitamin C Chewable Tablets (Pack of 15)', category: 'medicines', unit: 'packs', qty: 0, reorder: 20, pricePaise: 9500, supplier: 'Mankind', batch: 'VTC-2601', expiresInDays: 200 },
+    { name: 'Digital Thermometer', category: 'equipment', unit: 'units', qty: 10, reorder: 4, pricePaise: 19900, supplier: 'Omron', batch: 'THM-2601' },
+    { name: 'Baby Weighing Scale', category: 'equipment', unit: 'units', qty: 3, reorder: 1, pricePaise: 245000, supplier: 'Dr Trust', batch: 'BWS-2601' },
+  ],
+  dental: [
+    { name: 'Lidocaine 2% + Adrenaline Cartridge (Box of 50)', category: 'dental_materials', unit: 'boxes', qty: 15, reorder: 6, pricePaise: 42000, supplier: 'Septodont', batch: 'LID-2701', expiresInDays: 130 },
+    { name: 'Articaine 4% Cartridge (Box of 50)', category: 'dental_materials', unit: 'boxes', qty: 12, reorder: 5, pricePaise: 48000, supplier: 'Septodont', batch: 'ART-26C3', expiresInDays: 48 },
+    { name: 'Chlorhexidine Mouthwash 150ml', category: 'medicines', unit: 'bottles', qty: 50, reorder: 15, pricePaise: 13500, supplier: 'ICPA', batch: 'CHX-2708', expiresInDays: 340 },
+    { name: 'Metronidazole 400mg Tablet (Strip of 10)', category: 'medicines', unit: 'strips', qty: 100, reorder: 30, pricePaise: 1400, supplier: 'Alkem', batch: 'MTZ-2705', expiresInDays: 250 },
+    { name: 'Amoxicillin + Clavulanate 625mg Tablet', category: 'medicines', unit: 'strips', qty: 70, reorder: 20, pricePaise: 12800, supplier: 'GSK', batch: 'AMC-2703', expiresInDays: 190 },
+    { name: 'Light-Cure Composite Syringe A2', category: 'dental_materials', unit: 'units', qty: 8, reorder: 3, pricePaise: 185000, supplier: 'Ivoclar', batch: 'CMP-2710', expiresInDays: 430 },
+    { name: 'Prophylaxis Polishing Cups', category: 'dental_materials', unit: 'packs', qty: 0, reorder: 10, pricePaise: 5500, supplier: 'Prime Dental', batch: 'PPC-2601' },
+    { name: 'Cotton Rolls (Pack of 100)', category: 'consumables', unit: 'packs', qty: 55, reorder: 20, pricePaise: 6500, supplier: 'Prime Dental', batch: 'CTR-2601' },
+  ],
+  dermatology: [
+    { name: 'Hydrocortisone Cream 1% (15g)', category: 'medicines', unit: 'tubes', qty: 70, reorder: 20, pricePaise: 5500, supplier: 'Glenmark', batch: 'HYC-2707', expiresInDays: 330 },
+    { name: 'Clotrimazole Cream 1% (15g)', category: 'medicines', unit: 'tubes', qty: 90, reorder: 30, pricePaise: 3800, supplier: 'Bayer', batch: 'CLT-2711', expiresInDays: 460 },
+    { name: 'Isotretinoin 20mg Capsule (Strip of 10)', category: 'medicines', unit: 'strips', qty: 45, reorder: 15, pricePaise: 9500, supplier: 'Abbott', batch: 'ISO-2702', expiresInDays: 160 },
+    { name: 'Doxycycline 100mg Tablet (Strip of 10)', category: 'medicines', unit: 'strips', qty: 80, reorder: 25, pricePaise: 2200, supplier: 'Mankind', batch: 'DOX-26B5', expiresInDays: 74 },
+    { name: 'Tacrolimus Ointment 0.1% (10g)', category: 'medicines', unit: 'tubes', qty: 18, reorder: 6, pricePaise: 48500, supplier: 'Glenmark', batch: 'TAC-2712', expiresInDays: 500 },
+    { name: 'Minoxidil Solution 5% (60ml)', category: 'medicines', unit: 'bottles', qty: 22, reorder: 8, pricePaise: 58000, supplier: "Dr Reddy's", batch: 'MNX-2709', expiresInDays: 400 },
+    { name: 'Sunscreen Gel SPF 50 (50g)', category: 'medicines', unit: 'tubes', qty: 40, reorder: 12, pricePaise: 29500, supplier: 'Glenmark', batch: 'SUN-26A9', expiresInDays: 48 },
+    { name: 'Coal Tar Shampoo (100ml)', category: 'medicines', unit: 'bottles', qty: 0, reorder: 10, pricePaise: 16500, supplier: 'Cipla', batch: 'CTS-2601', expiresInDays: 210 },
+  ],
+  general: [
+    { name: 'Metformin 500mg Tablet (Strip of 20)', category: 'medicines', unit: 'strips', qty: 200, reorder: 60, pricePaise: 1300, supplier: 'USV', batch: 'MET-2710', expiresInDays: 430 },
+    { name: 'Amlodipine 5mg Tablet (Strip of 15)', category: 'medicines', unit: 'strips', qty: 150, reorder: 45, pricePaise: 1900, supplier: 'Cipla', batch: 'AML-2708', expiresInDays: 340 },
+    { name: 'Atorvastatin 10mg Tablet (Strip of 15)', category: 'medicines', unit: 'strips', qty: 120, reorder: 40, pricePaise: 3400, supplier: 'Zydus', batch: 'ATV-2704', expiresInDays: 230 },
+    { name: 'Pantoprazole 40mg Tablet (Strip of 15)', category: 'medicines', unit: 'strips', qty: 140, reorder: 40, pricePaise: 2900, supplier: 'Alkem', batch: 'PAN-2706', expiresInDays: 300 },
+    { name: 'Salbutamol Inhaler 200 MD', category: 'medicines', unit: 'units', qty: 25, reorder: 8, pricePaise: 14500, supplier: 'Cipla', batch: 'SLB-2701', expiresInDays: 130 },
+    { name: 'Insulin Glargine 100IU Pen (3ml)', category: 'medicines', unit: 'pens', qty: 12, reorder: 5, pricePaise: 98500, supplier: 'Sanofi', batch: 'INS-2703', expiresInDays: 190 },
+    { name: 'Tetanus Toxoid Ampoule 0.5ml', category: 'medicines', unit: 'ampoules', qty: 30, reorder: 10, pricePaise: 3500, supplier: 'Serum Institute', batch: 'TTX-26B5', expiresInDays: 74 },
+    { name: 'Nebulizer Mask Kit (Adult, Pack of 5)', category: 'consumables', unit: 'packs', qty: 0, reorder: 10, pricePaise: 12500, supplier: 'Romsons', batch: 'NBK-2601' },
+  ],
+}
+
+function isoInDays(days: number): string {
+  const d = new Date()
+  d.setDate(d.getDate() + days)
+  return d.toISOString().slice(0, 10)
+}
+
+async function seedInventoryForClinic(
+  client: import('pg').PoolClient,
+  clinicType: string,
+): Promise<void> {
+  const items = [...GENERAL_INVENTORY, ...(SPECIALTY_INVENTORY[clinicType] ?? SPECIALTY_INVENTORY.general)]
+  for (const it of items) {
+    await client.query(
+      `INSERT INTO inventory_items
+         (id, name, category, unit, quantity, reorder_level, unit_price_paise, supplier, batch_no, expiry_date)
+       SELECT $1, $2, $3, $4, $5, $6, $7, $8, $9, $10
+       WHERE NOT EXISTS (SELECT 1 FROM inventory_items WHERE name = $2)`,
+      [
+        randomUUID(),
+        it.name,
+        it.category,
+        it.unit,
+        it.qty,
+        it.reorder,
+        it.pricePaise,
+        it.supplier,
+        it.batch,
+        it.expiresInDays != null ? isoInDays(it.expiresInDays) : null,
+      ],
+    )
+  }
+}
+
 export const DEMO_CLINIC_TYPES: Record<string, { type: string; name: string }> = {
   sunrise: { type: 'dental', name: 'Sunrise Dental Clinic' },
   nova: { type: 'pediatric', name: "Nova Children's Clinic" },
@@ -201,6 +307,8 @@ export async function seedDemoData(
         }
       }
     }
+
+    await seedInventoryForClinic(client, clinicType)
 
     await client.query('COMMIT')
   } catch (err) {
