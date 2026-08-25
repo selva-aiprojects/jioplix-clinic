@@ -14,7 +14,7 @@ import {
 } from '../lib/api'
 import type { Appointment, Patient, DoctorOption } from '../lib/api'
 
-const hours = Array.from({ length: 12 }, (_, i) => `${i + 8}:00`)
+const doctors = ['All Doctors', 'Dr. Priya', 'Dr. Anand']
 
 const statusConfig: Record<string, { bg: string; text: string; icon: typeof CheckCircle2; label: string }> = {
   'completed': { bg: 'bg-success-50 border-success-200', text: 'text-success-700', icon: CheckCircle2, label: 'Completed' },
@@ -25,8 +25,6 @@ const statusConfig: Record<string, { bg: string; text: string; icon: typeof Chec
   'cancelled': { bg: 'bg-danger-50 border-danger-200', text: 'text-danger-600', icon: XCircle, label: 'Cancelled' },
   'no_show': { bg: 'bg-surface-50 border-surface-200', text: 'text-surface-500', icon: XCircle, label: 'No Show' },
 }
-
-const doctors = ['All Doctors', 'Dr. Priya', 'Dr. Anand']
 
 const SOURCE_OPTIONS = [
   { value: 'walk_in' as const, label: 'Walk-in', icon: DoorOpen },
@@ -82,6 +80,25 @@ function validateApptForm(f: ApptForm): Record<string, string> {
   return errs
 }
 
+function weekDates(anchor: string): string[] {
+  const d = new Date(`${anchor}T00:00:00`)
+  const day = d.getDay()
+  const monday = new Date(d)
+  monday.setDate(d.getDate() - ((day + 6) % 7))
+  return Array.from({ length: 7 }, (_, i) => {
+    const x = new Date(monday)
+    x.setDate(monday.getDate() + i)
+    return x.toISOString().slice(0, 10)
+  })
+}
+
+function weekLabel(anchor: string): string {
+  const dates = weekDates(anchor)
+  const s = new Date(`${dates[0]}T00:00:00`)
+  const e = new Date(`${dates[6]}T00:00:00`)
+  return `${s.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} – ${e.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`
+}
+
 function avatarColorFor(name: string): string {
   const colors = [
     'from-primary-400 to-primary-600',
@@ -134,14 +151,18 @@ const inputCls = (invalid?: boolean) =>
 export default function Appointments() {
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
+  const today = new Date().toISOString().slice(0, 10)
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [view, setView] = useState<'list' | 'calendar'>('list')
+  const [calMode, setCalMode] = useState<'day' | 'week'>('week')
+  const [anchor, setAnchor] = useState(today)
+  const [calAppts, setCalAppts] = useState<Appointment[]>([])
+  const [loadingCal, setLoadingCal] = useState(false)
   const [selectedDoctor, setSelectedDoctor] = useState('All Doctors')
   const [loading, setLoading] = useState(true)
   const [actionError, setActionError] = useState<string | null>(null)
   const [busyId, setBusyId] = useState<string | null>(null)
   const [flash, setFlash] = useState<string | null>(null)
-  const today = new Date().toISOString().slice(0, 10)
 
   const [showNewAppt, setShowNewAppt] = useState(false)
   const [form, setForm] = useState<ApptForm>(() => defaultApptForm(new Date().toISOString().slice(0, 10)))
@@ -176,6 +197,17 @@ export default function Appointments() {
       setSearchParams({}, { replace: true })
     }
   }, [searchParams, setSearchParams])
+
+  useEffect(() => {
+    if (view !== 'calendar') return
+    let cancelled = false
+    setLoadingCal(true)
+    const dates = calMode === 'week' ? weekDates(anchor) : [anchor]
+    Promise.all(dates.map(d => listAppointments(d).catch(() => [] as Appointment[])))
+      .then(res => { if (!cancelled) setCalAppts(res.flat()) })
+      .finally(() => { if (!cancelled) setLoadingCal(false) })
+    return () => { cancelled = true }
+  }, [view, calMode, anchor])
 
   useEffect(() => {
     if (!flash) return
@@ -294,9 +326,10 @@ export default function Appointments() {
     }
   }
 
-  const filtered = selectedDoctor === 'All Doctors'
-    ? appointments
-    : appointments.filter(a => a.doctorName.startsWith(selectedDoctor))
+  const applyDoctorFilter = (list: Appointment[]) =>
+    selectedDoctor === 'All Doctors' ? list : list.filter(a => a.doctorName.startsWith(selectedDoctor))
+
+  const filtered = applyDoctorFilter(appointments)
 
   const stats = {
     total: filtered.length,
@@ -357,18 +390,9 @@ export default function Appointments() {
           ))}
         </div>
         <div className="flex gap-2 md:ml-auto">
-          <button
-            onClick={() => setView('list')}
-            className={`px-3 py-2 rounded-lg text-[12px] font-medium transition-all ${view === 'list' ? 'bg-white text-primary-700 shadow-sm border border-primary-200' : 'text-surface-500 border border-surface-200 hover:bg-surface-50'}`}
-          >
-            List View
-          </button>
-          <button
-            onClick={() => setView('calendar')}
-            className={`px-3 py-2 rounded-lg text-[12px] font-medium transition-all ${view === 'calendar' ? 'bg-white text-primary-700 shadow-sm border border-primary-200' : 'text-surface-500 border border-surface-200 hover:bg-surface-50'}`}
-          >
-            Calendar
-          </button>
+          <button onClick={() => setView('list')} className={`px-3 py-2 rounded-lg text-[12px] font-medium transition-all ${view === 'list' ? 'bg-white text-primary-700 shadow-sm border border-primary-200' : 'text-surface-500 border border-surface-200 hover:bg-surface-50'}`}>List</button>
+          <button onClick={() => { setView('calendar'); setCalMode('day') }} className={`px-3 py-2 rounded-lg text-[12px] font-medium transition-all ${view === 'calendar' && calMode === 'day' ? 'bg-white text-primary-700 shadow-sm border border-primary-200' : 'text-surface-500 border border-surface-200 hover:bg-surface-50'}`}>Day</button>
+          <button onClick={() => { setView('calendar'); setCalMode('week') }} className={`px-3 py-2 rounded-lg text-[12px] font-medium transition-all ${view === 'calendar' && calMode === 'week' ? 'bg-white text-primary-700 shadow-sm border border-primary-200' : 'text-surface-500 border border-surface-200 hover:bg-surface-50'}`}>Week</button>
         </div>
       </div>
 
@@ -465,36 +489,78 @@ export default function Appointments() {
       {view === 'calendar' && (
         <div className="bg-white rounded-2xl border border-surface-100 shadow-healthcare p-5">
           <div className="flex items-center justify-between mb-5">
-            <div className="flex items-center gap-3">
-              <button className="p-2 rounded-lg hover:bg-surface-100 text-surface-400"><ChevronLeft className="w-4 h-4" /></button>
-              <h3 className="text-[15px] font-semibold text-surface-800">{new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric', weekday: 'long' })}</h3>
-              <button className="p-2 rounded-lg hover:bg-surface-100 text-surface-400"><ChevronRight className="w-4 h-4" /></button>
+            <div className="flex items-center gap-2">
+              <button
+                className="p-2 rounded-lg hover:bg-surface-100 text-surface-400"
+                aria-label="Previous"
+                onClick={() => { const d = new Date(`${anchor}T00:00:00`); d.setDate(d.getDate() + (calMode === 'week' ? -7 : -1)); setAnchor(d.toISOString().slice(0, 10)) }}
+              ><ChevronLeft className="w-4 h-4" /></button>
+              <h3 className="text-[15px] font-semibold text-surface-800">
+                {calMode === 'week' ? weekLabel(anchor) : new Date(`${anchor}T00:00:00`).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric', weekday: 'long' })}
+              </h3>
+              <button
+                className="p-2 rounded-lg hover:bg-surface-100 text-surface-400"
+                aria-label="Next"
+                onClick={() => { const d = new Date(`${anchor}T00:00:00`); d.setDate(d.getDate() + (calMode === 'week' ? 7 : 1)); setAnchor(d.toISOString().slice(0, 10)) }}
+              ><ChevronRight className="w-4 h-4" /></button>
+              <button onClick={() => setAnchor(today)} className="ml-1 rounded-lg border border-surface-200 px-2.5 py-1 text-[11px] font-medium text-surface-500 hover:bg-surface-50">Today</button>
+            </div>
+            <div className="flex gap-1 bg-surface-100 rounded-xl p-1">
+              <button onClick={() => setCalMode('day')} className={`px-3 py-1.5 rounded-lg text-[12px] font-medium transition-all ${calMode === 'day' ? 'bg-white text-primary-700 shadow-sm' : 'text-surface-500'}`}>Day</button>
+              <button onClick={() => setCalMode('week')} className={`px-3 py-1.5 rounded-lg text-[12px] font-medium transition-all ${calMode === 'week' ? 'bg-white text-primary-700 shadow-sm' : 'text-surface-500'}`}>Week</button>
             </div>
           </div>
-          <div className="grid grid-cols-[60px_1fr_1fr] gap-px bg-surface-100 rounded-xl overflow-hidden">
-            <div className="bg-surface-50 p-2 text-[11px] font-semibold text-surface-400">Time</div>
-            <div className="bg-surface-50 p-2 text-[11px] font-semibold text-surface-400">Dr. Priya</div>
-            <div className="bg-surface-50 p-2 text-[11px] font-semibold text-surface-400">Dr. Anand</div>
-              {hours.slice(0, 8).map(h => (
-              <div key={h} className="contents">
-                <div className="bg-white p-2 text-[11px] text-surface-400 font-medium">{h}</div>
-                <div className="bg-white p-1">
-                  {appointments.filter(a => new Date(a.scheduledAt).getHours() === parseInt(h) && a.doctorName === 'Dr. Priya').map(a => (
-                    <div key={a.id} className={`p-2 rounded-lg border text-[11px] mb-1 ${(statusConfig[a.status] || statusConfig['scheduled']).bg} ${(statusConfig[a.status] || statusConfig['scheduled']).text} font-medium`}>
-                      {a.patientName} - {a.source || 'walk_in'}
+
+          {loadingCal ? (
+            <p className="py-12 text-center text-[13px] text-surface-400">Loading schedule…</p>
+          ) : calMode === 'week' ? (
+            <div className="grid grid-cols-7 gap-2 min-w-[640px]">
+              {weekDates(anchor).map(dateStr => {
+                const dayAppts = applyDoctorFilter(calAppts.filter(a => a.scheduledAt.slice(0, 10) === dateStr))
+                const isToday = dateStr === today
+                return (
+                  <div key={dateStr} className={`flex min-h-[280px] flex-col rounded-xl border ${isToday ? 'border-primary-300 bg-primary-50/30' : 'border-surface-100 bg-surface-50/40'}`}>
+                    <div className={`px-2 py-2 text-center border-b ${isToday ? 'border-primary-200' : 'border-surface-100'}`}>
+                      <p className="text-[10px] font-semibold uppercase text-surface-400">{new Date(`${dateStr}T00:00:00`).toLocaleDateString('en-GB', { weekday: 'short' })}</p>
+                      <p className={`text-[15px] font-bold ${isToday ? 'text-primary-700' : 'text-surface-800'}`}>{new Date(`${dateStr}T00:00:00`).getDate()}</p>
                     </div>
-                  ))}
-                </div>
-                <div className="bg-white p-1">
-                  {appointments.filter(a => new Date(a.scheduledAt).getHours() === parseInt(h) && a.doctorName === 'Dr. Anand').map(a => (
-                    <div key={a.id} className={`p-2 rounded-lg border text-[11px] mb-1 ${(statusConfig[a.status] || statusConfig['scheduled']).bg} ${(statusConfig[a.status] || statusConfig['scheduled']).text} font-medium`}>
-                      {a.patientName} - {a.source || 'walk_in'}
+                    <div className="flex-1 space-y-1.5 p-1.5">
+                      {dayAppts.length === 0 ? (
+                        <p className="text-center text-[10px] text-surface-300 mt-3">—</p>
+                      ) : dayAppts.map(a => {
+                        const sc = statusConfig[a.status] || statusConfig['scheduled']
+                        return (
+                          <div key={a.id} className={`rounded-lg border px-1.5 py-1 ${sc.bg} ${sc.text}`}>
+                            <p className="font-bold leading-tight">{new Date(a.scheduledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                            <p className="truncate">{a.patientName}</p>
+                          </div>
+                        )
+                      })}
                     </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
+                  </div>
+                )
+              })}
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {applyDoctorFilter(calAppts).length === 0 ? (
+                <p className="py-12 text-center text-[13px] text-surface-400">No appointments on this day.</p>
+              ) : applyDoctorFilter(calAppts).map(a => {
+                const sc = statusConfig[a.status] || statusConfig['scheduled']
+                const time = new Date(a.scheduledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                return (
+                  <div key={a.id} className="flex items-center gap-3 rounded-xl border border-surface-100 p-3 hover:bg-surface-50/50 transition-colors">
+                    <div className="w-14 text-center"><p className="text-[13px] font-bold text-surface-800">{time}</p></div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[13px] font-semibold text-surface-800 truncate">{a.patientName}</p>
+                      <p className="text-[11px] text-surface-400">{a.doctorName}</p>
+                    </div>
+                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] font-semibold border ${sc.bg} ${sc.text}`}><sc.icon className="w-3 h-3" />{sc.label}</span>
+                  </div>
+                )
+              })}
+            </div>
+          )}
         </div>
       )}
 

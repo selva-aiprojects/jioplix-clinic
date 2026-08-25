@@ -474,3 +474,106 @@ export const procedureOrders = pgTable(
     index('procedure_orders_created_idx').on(t.createdAt),
   ],
 )
+
+export const drugMaster = pgTable(
+  'drug_master',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    brand: text('brand').notNull(),
+    generic: text('generic').notNull(),
+    strength: text('strength'),
+    form: text('form'),
+    commonDosages: jsonb('common_dosages').$type<string[]>().notNull().default([]),
+    commonFrequencies: jsonb('common_frequencies').$type<string[]>().notNull().default([]),
+    commonDurations: jsonb('common_durations').$type<number[]>().notNull().default([]),
+    category: text('category'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('drug_master_brand_idx').on(t.brand),
+    index('drug_master_generic_idx').on(t.generic),
+  ],
+)
+
+export const icd10Codes = pgTable(
+  'icd10_codes',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    code: text('code').notNull(),
+    name: text('name').notNull(),
+    isCommon: boolean('is_common').notNull().default(false),
+  },
+  (t) => [
+    index('icd10_code_idx').on(t.code),
+    index('icd10_common_idx').on(t.isCommon),
+  ],
+)
+
+export const rxTemplates = pgTable(
+  'rx_templates',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    name: text('name').notNull(),
+    category: text('category').notNull().default('General'),
+    createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('rx_templates_owner_idx').on(t.createdBy)],
+)
+
+export const rxTemplateItems = pgTable(
+  'rx_template_items',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    templateId: uuid('template_id')
+      .notNull()
+      .references(() => rxTemplates.id, { onDelete: 'cascade' }),
+    drugName: text('drug_name').notNull(),
+    genericName: text('generic_name'),
+    strength: text('strength'),
+    form: text('form'),
+    dosage: text('dosage').notNull(),
+    frequency: text('frequency').notNull(),
+    durationDays: integer('duration_days'),
+    instructions: text('instructions'),
+    sequence: integer('sequence').notNull().default(0),
+  },
+  (t) => [index('rx_template_items_tpl_idx').on(t.templateId)],
+)
+
+export const notifications = pgTable(
+  'notifications',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    recipientUserId: uuid('recipient_user_id').references(() => users.id, { onDelete: 'cascade' }),
+    category: text('category').notNull().default('system'),
+    title: text('title').notNull(),
+    body: text('body').notNull(),
+    href: text('href'),
+    isRead: boolean('is_read').notNull().default(false),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('notifications_recipient_idx').on(t.recipientUserId, t.isRead),
+    index('notifications_created_idx').on(t.createdAt),
+  ],
+)
+
+export const aiJobs = pgTable(
+  'ai_jobs',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    encounterId: uuid('encounter_id').references(() => encounters.id, { onDelete: 'cascade' }),
+    status: text('status', {
+      enum: ['pending', 'processing', 'completed', 'failed'],
+    })
+      .notNull()
+      .default('pending'),
+    requestedBy: uuid('requested_by').references(() => users.id, { onDelete: 'set null' }),
+    context: jsonb('context'),
+    result: jsonb('result'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('ai_jobs_encounter_idx').on(t.encounterId)],
+)

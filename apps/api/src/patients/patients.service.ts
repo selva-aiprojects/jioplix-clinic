@@ -1,9 +1,17 @@
 import { Injectable } from '@nestjs/common'
-import { desc, eq } from 'drizzle-orm'
+import { asc, desc, eq } from 'drizzle-orm'
 import { DbService } from '../db/db.service.js'
-import { patients } from '../db/schema/tenant.js'
+import { patients, encounters, vitals } from '../db/schema/tenant.js'
 import { newId } from '@jioplix/contracts'
 import type { PatientCreate } from '@jioplix/contracts'
+
+export interface VitalsSnapshot {
+  date: string
+  bpSystolic: number | null
+  bpDiastolic: number | null
+  pulse: number | null
+  weightKg: number | null
+}
 
 @Injectable()
 export class PatientsService {
@@ -48,6 +56,23 @@ export class PatientsService {
   async findById(schemaName: string, id: string) {
     return this.db.withTenant(schemaName, (db) =>
       db.select().from(patients).where(eq(patients.id, id)).limit(1),
+    )
+  }
+
+  async vitalsHistory(schemaName: string, patientId: string): Promise<VitalsSnapshot[]> {
+    return this.db.withTenant(schemaName, (db) =>
+      db
+        .select({
+          date: encounters.encounterDate,
+          bpSystolic: vitals.bpSystolic,
+          bpDiastolic: vitals.bpDiastolic,
+          pulse: vitals.pulse,
+          weightKg: vitals.weightKg,
+        })
+        .from(vitals)
+        .innerJoin(encounters, eq(vitals.encounterId, encounters.id))
+        .where(eq(encounters.patientId, patientId))
+        .orderBy(asc(encounters.encounterDate)),
     )
   }
 }

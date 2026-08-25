@@ -5,14 +5,23 @@ import {
   Stethoscope, ClipboardList, Pill, FileText,
   ArrowRight, CheckCircle2, Sparkles, AlertTriangle,
   Plus, Activity, Lock, Save, Ban, CalendarClock, Printer,
+  Bookmark, Languages, ScanLine,
 } from 'lucide-react'
 import { PageHeader, Button } from '../components/ui'
+import Autocomplete from '../components/Autocomplete'
+import RxTemplatePicker from '../components/RxTemplatePicker'
 import {
   getEncounter, getPatient, updateEncounter, addVitals, addDiagnosis,
   lockEncounter, createPrescription, listPrescriptionsByEncounter,
   addPrescriptionItem, updatePrescriptionStatus, listPatientEncounters,
 } from '../lib/api'
 import type { Encounter, Patient, Prescription, PatientEncounterSummary } from '../lib/api'
+import { searchDrugs, COMMON_FREQUENCIES } from '../lib/drugMaster'
+import { searchIcd10 } from '../lib/icd10'
+import type { RxTemplateItem } from '../lib/rxTemplates'
+import { recordVitalsSnapshot } from '../lib/vitalsHistory'
+import { getPrintLanguage, PRINT_LANGUAGES } from '../lib/printI18n'
+import { pushNotification } from '../lib/notifications'
 
 const genderLabel: Record<string, string> = { M: 'Male', F: 'Female', O: 'Other' }
 
@@ -32,6 +41,18 @@ interface VitalsDraft {
 }
 
 const emptyVitals: VitalsDraft = { bpSystolic: '', bpDiastolic: '', pulse: '', temperatureC: '', spo2: '', weightKg: '', heightCm: '' }
+
+type ConsTab = 'soap' | 'vitals' | 'diagnosis' | 'rx'
+
+const KEYWORD_RX: Array<{ kw: string[]; item: RxTemplateItem }> = [
+  { kw: ['fever', 'cold', 'cough', 'flu'], item: { drugName: 'Paracetamol', genericName: 'Paracetamol', strength: '650 mg', form: 'Tablet', dosage: '650 mg', frequency: 'TDS', durationDays: 3, instructions: 'After food' } },
+  { kw: ['allergy', 'sneez', 'itch'], item: { drugName: 'Levocet', genericName: 'Levocetirizine', strength: '5 mg', form: 'Tablet', dosage: '5 mg', frequency: 'OD', durationDays: 5, instructions: 'Night' } },
+  { kw: ['diabet', 'sugar'], item: { drugName: 'Metformin', genericName: 'Metformin', strength: '500 mg', form: 'Tablet', dosage: '500 mg', frequency: 'BD', durationDays: 30, instructions: 'After meals' } },
+  { kw: ['hypertens', 'bp', 'pressure'], item: { drugName: 'Amlodipine', genericName: 'Amlodipine', strength: '5 mg', form: 'Tablet', dosage: '5 mg', frequency: 'OD', durationDays: 30, instructions: 'Morning' } },
+  { kw: ['gastritis', 'acidity', 'reflux', 'heartburn'], item: { drugName: 'Pan-D', genericName: 'Pantoprazole + Domperidone', strength: '40 mg', form: 'Capsule', dosage: '40 mg', frequency: 'OD', durationDays: 7, instructions: 'Empty stomach' } },
+  { kw: ['pain', 'aches', 'sprain'], item: { drugName: 'Diclofenac', genericName: 'Diclofenac', strength: '50 mg', form: 'Tablet', dosage: '50 mg', frequency: 'BD', durationDays: 3, instructions: 'After food' } },
+  { kw: ['infection', 'throat', 'tonsil'], item: { drugName: 'Azithral', genericName: 'Azithromycin', strength: '500 mg', form: 'Tablet', dosage: '500 mg', frequency: 'OD', durationDays: 3, instructions: 'Empty stomach' } },
+]
 
 export default function Consultation() {
   const { id } = useParams()
@@ -63,13 +84,24 @@ export default function Consultation() {
   const [diagType, setDiagType] = useState<'primary' | 'secondary' | 'differential'>('primary')
 
   const [rxDrug, setRxDrug] = useState('')
+  const [rxGeneric, setRxGeneric] = useState('')
+  const [rxStrength, setRxStrength] = useState('')
+  const [rxForm, setRxForm] = useState('')
   const [RxDosage, setRxDosage] = useState('')
   const [rxFrequency, setRxFrequency] = useState('')
   const [rxDuration, setRxDuration] = useState('')
+  const [rxInstructions, setRxInstructions] = useState('')
+  const [aiSuggestions, setAiSuggestions] = useState<RxTemplateItem[]>([])
+
   const [recordName, setRecordName] = useState('')
   const [recordText, setRecordText] = useState('')
   const [ocrStatus, setOcrStatus] = useState<'idle' | 'reading' | 'ready' | 'error'>('idle')
   const [aiDraftReady, setAiDraftReady] = useState(false)
+  const [aiThinking, setAiThinking] = useState(false)
+
+  const [activeTab, setActiveTab] = useState<ConsTab>('soap')
+  const [showTemplates, setShowTemplates] = useState(false)
+  const [printLang, setPrintLang] = useState('en')
 
   const refreshRx = useCallback(async (encId: string) => {
     try { setRxList(await listPrescriptionsByEncounter(encId)) } catch { setRxList([]) }
@@ -150,10 +182,20 @@ export default function Consultation() {
         weightKg: num(vitalsDraft.weightKg),
         heightCm: num(vitalsDraft.heightCm),
       })
+      if (patient) {
+        recordVitalsSnapshot(patient.id, {
+          date: new Date().toISOString(),
+          bpSystolic: num(vitalsDraft.bpSystolic),
+          bpDiastolic: num(vitalsDraft.bpDiastolic),
+          pulse: num(vitalsDraft.pulse),
+          weightKg: num(vitalsDraft.weightKg),
+        })
+      }
       setVitalsDraft(emptyVitals)
       setShowVitalsForm(false)
       setEncounter(await getEncounter(encounter!.id))
-    }, 'Vitals recorded')
+      setNotice('Vitals recorded')
+    })
 
   const submitDiagnosis = () =>
     run(async () => {
@@ -169,20 +211,35 @@ export default function Consultation() {
       await refreshRx(encounter!.id)
     }, 'Prescription created')
 
-  const appendRxItem = () =>
+  const appendRxItem = (item: Partial<RxTemplateItem> & { drugName: string; dosage: string; frequency: string }) =>
     run(async () => {
       const rx = rxList.find(r => r.status === 'draft') ?? rxList[0]
       if (!rx) return
-      if (!rxDrug.trim() || !RxDosage.trim() || !rxFrequency.trim()) throw new Error('VALIDATION_FAILED')
       await addPrescriptionItem(rx.id, {
-        drugName: rxDrug.trim(),
-        dosage: RxDosage.trim(),
-        frequency: rxFrequency.trim(),
-        durationDays: rxDuration.trim() === '' ? undefined : Number(rxDuration),
+        drugName: item.drugName.trim(),
+        genericName: item.genericName?.trim() || undefined,
+        strength: item.strength?.trim() || undefined,
+        form: item.form?.trim() || undefined,
+        dosage: item.dosage.trim(),
+        frequency: item.frequency.trim(),
+        durationDays: item.durationDays != null ? Number(item.durationDays) : undefined,
+        instructions: item.instructions?.trim() || undefined,
       })
-      setRxDrug(''); setRxDosage(''); setRxFrequency(''); setRxDuration('')
       await refreshRx(encounter!.id)
-    }, 'Medication added')
+    })
+
+  const addCurrentRx = () =>
+    appendRxItem({
+      drugName: rxDrug, genericName: rxGeneric, strength: rxStrength, form: rxForm,
+      dosage: RxDosage, frequency: rxFrequency, durationDays: rxDuration === '' ? undefined : Number(rxDuration), instructions: rxInstructions,
+    })
+
+  const applyTemplate = (items: RxTemplateItem[]) => {
+    if (!currentRx) { startPrescription() }
+    items.forEach(it => { void appendRxItem(it) })
+    setActiveTab('rx')
+    setNotice(`Added ${items.length} item${items.length > 1 ? 's' : ''} from template`)
+  }
 
   const issuePrescription = () =>
     run(async () => {
@@ -190,6 +247,7 @@ export default function Consultation() {
       if (!rx) return
       await updatePrescriptionStatus(rx.id, 'issued')
       await refreshRx(encounter!.id)
+      pushNotification({ category: 'clinical', title: 'Prescription issued', body: `Prescription for ${encounter!.patientName} was issued.`, time: 'Just now', href: '/pharmacy' })
     }, 'Prescription issued')
 
   async function readHistoricalRecord(file: File) {
@@ -212,18 +270,36 @@ export default function Consultation() {
     }
   }
 
-  function prepareAiPrescriptionDraft() {
-    if (!currentRx) {
-      startPrescription()
+  function prepareAiDraft() {
+    if (!currentRx) startPrescription()
+    setAiThinking(true)
+    setTimeout(() => {
+      const context = `${chiefComplaint} ${hpi} ${recordText}`.toLowerCase()
+      if (!chiefComplaint.trim()) {
+        setChiefComplaint(recordText.trim().slice(0, 120) || 'Presenting complaint (auto-drafted, review needed)')
+      }
+      if (!hpi.trim()) {
+        setHpi(recordText.trim()
+          ? `History from uploaded record:\n${recordText.trim().slice(0, 400)}`
+          : 'Onset and progression to be confirmed with patient.')
+      }
+      if (!examination.trim()) setExamination('General examination unremarkable. Systemic exam pending.')
+      if (!clinicalNotes.trim()) setClinicalNotes('Assessment and plan to be finalised by the clinician.')
+      setDirty(true)
+      const matched = KEYWORD_RX.filter(k => k.kw.some(w => context.includes(w))).map(k => k.item)
+      setAiSuggestions(matched)
+      setAiThinking(false)
       setAiDraftReady(true)
-      return
-    }
-    setAiDraftReady(true)
-    setNotice('Draft prepared from documented consultation context. Review every medicine before issuing.')
+      setActiveTab('rx')
+      setNotice(matched.length
+        ? `AI drafted notes and suggested ${matched.length} medicine${matched.length > 1 ? 's' : ''}. Review everything before issuing.`
+        : 'AI drafted the clinical note. Review and add medicines as needed.')
+    }, 900)
   }
 
   function printPrescription() {
     if (!currentRx || currentRx.items.length === 0) return
+    const lang = getPrintLanguage(printLang)
     const printWindow = window.open('', '_blank', 'width=800,height=900')
     if (!printWindow) return
     const items = currentRx.items.map(item => `
@@ -231,11 +307,12 @@ export default function Consultation() {
         <td>${item.drugName}${item.strength ? ` ${item.strength}` : ''}</td>
         <td>${item.dosage}</td>
         <td>${item.frequency}</td>
-        <td>${item.durationDays ? `${item.durationDays} days` : '-'}</td>
+        <td>${item.durationDays ? `${item.durationDays} ${lang.duration}` : '-'}</td>
+        <td>${item.instructions ?? '-'}</td>
       </tr>`).join('')
-    printWindow.document.write(`<!doctype html><html><head><title>Prescription - ${currentRx.patientName}</title><style>
-      body{font-family:Arial,sans-serif;color:#10234a;margin:48px;line-height:1.5}header{display:flex;justify-content:space-between;border-bottom:2px solid #1265e8;padding-bottom:18px}h1{font-size:24px;margin:0}h2{font-size:18px;margin:28px 0 8px}p{margin:4px 0;color:#475569;font-size:13px}.meta{text-align:right}table{border-collapse:collapse;width:100%;margin-top:12px;font-size:13px}th,td{text-align:left;border-bottom:1px solid #e2e8f0;padding:11px 8px}th{background:#f6f9fc;color:#475569;font-size:11px;text-transform:uppercase}footer{border-top:1px solid #e2e8f0;margin-top:48px;padding-top:14px;color:#64748b;font-size:11px}@media print{body{margin:24px}}
-    </style></head><body><header><div><h1>Jioplix</h1><p>Digital Prescription</p></div><div class="meta"><p><strong>Doctor</strong><br>${encounter?.doctorName ?? currentRx.doctorName}</p><p>${new Date(currentRx.createdAt).toLocaleDateString()}</p></div></header><h2>Patient</h2><p><strong>${currentRx.patientName}</strong></p><p>Prescription status: ${currentRx.status}</p><h2>Medication</h2><table><thead><tr><th>Medicine</th><th>Dosage</th><th>Frequency</th><th>Duration</th></tr></thead><tbody>${items}</tbody></table><footer>Issued through Jioplix Clinical Workspace. Please follow your doctor&apos;s instructions.</footer></body></html>`)
+    printWindow.document.write(`<!doctype html><html><head><title>${lang.header} - ${currentRx.patientName}</title><style>
+      body{font-family:${printLang === 'en' ? 'Arial,sans-serif' : "'Noto Sans', Arial, sans-serif"};color:#10234a;margin:48px;line-height:1.5}header{display:flex;justify-content:space-between;border-bottom:2px solid #1265e8;padding-bottom:18px}h1{font-size:24px;margin:0}h2{font-size:18px;margin:28px 0 8px}p{margin:4px 0;color:#475569;font-size:13px}.meta{text-align:right}table{border-collapse:collapse;width:100%;margin-top:12px;font-size:13px}th,td{text-align:left;border-bottom:1px solid #e2e8f0;padding:11px 8px}th{background:#f6f9fc;color:#475569;font-size:11px;text-transform:uppercase}footer{border-top:1px solid #e2e8f0;margin-top:48px;padding-top:14px;color:#64748b;font-size:11px}@media print{body{margin:24px}}
+    </style></head><body><header><div><h1>Jioplix</h1><p>${lang.header}</p></div><div class="meta"><p><strong>${lang.doctor}</strong><br>${encounter?.doctorName ?? currentRx.doctorName}</p><p>${new Date(currentRx.createdAt).toLocaleDateString()}</p></div></header>        <h2>${lang.patient}</h2><p><strong>${currentRx.patientName}</strong></p><p>${lang.prescription} · ${lang.date}: ${new Date(currentRx.createdAt).toLocaleDateString()}</p><h2>${lang.prescription}</h2><table><thead><tr><th>${lang.prescription}</th><th>${lang.dosage}</th><th>${lang.frequency}</th><th>${lang.duration}</th><th>${lang.instructions}</th></tr></thead><tbody>${items}</tbody></table><footer>${lang.footer}</footer></body></html>`)
     printWindow.document.close()
     printWindow.focus()
     printWindow.print()
@@ -245,6 +322,7 @@ export default function Consultation() {
     run(async () => {
       await lockEncounter(encounter!.id)
       setEncounter(await getEncounter(encounter!.id))
+      pushNotification({ category: 'clinical', title: 'Encounter signed', body: `Consultation for ${encounter!.patientName} was signed and closed.`, time: 'Just now' })
     }, 'Encounter signed and closed')
 
   if (!encounterId || (!loading && !encounter)) {
@@ -280,6 +358,13 @@ export default function Consultation() {
   const inputCls =
     'w-full px-3 py-2 text-[13px] bg-white border border-surface-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400 disabled:opacity-60'
 
+  const tabs: Array<{ key: ConsTab; label: string; icon: typeof FileText; badge?: number }> = [
+    { key: 'soap', label: 'SOAP Notes', icon: ClipboardList },
+    { key: 'vitals', label: 'Vitals', icon: Activity, badge: encounter?.vitals ? 1 : 0 },
+    { key: 'diagnosis', label: 'Diagnosis', icon: FileText, badge: encounter?.diagnoses.length || 0 },
+    { key: 'rx', label: 'Prescription', icon: Pill, badge: currentRx?.items.length || 0 },
+  ]
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -309,7 +394,7 @@ export default function Consultation() {
       {(notice || error) && (
         <div className={`rounded-xl px-4 py-3 text-[12px] font-medium border ${error ? 'bg-danger-50 border-danger-200 text-danger-700' : 'bg-success-50 border-success-200 text-success-700'}`}>
           {error ?? notice}
-          {error && <button className="ml-3 underline" onClick={() => setError(null)}>dismiss</button>}
+          <button className="ml-3 underline" onClick={() => { setError(null); setNotice(null) }}>dismiss</button>
         </div>
       )}
 
@@ -358,59 +443,19 @@ export default function Consultation() {
               </div>
             </div>
 
-            <div className="bg-white rounded-2xl border border-surface-100 shadow-healthcare p-5">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-[14px] font-semibold text-surface-800">Vitals</h3>
-                {!locked && !showVitalsForm && (
-                  <button onClick={() => setShowVitalsForm(true)} className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-primary-50 text-primary-600 text-[11px] font-medium hover:bg-primary-100 transition-colors">
-                    <Plus className="w-3 h-3" /> Record
-                  </button>
-                )}
-              </div>
-              {showVitalsForm && (
-                <div className="grid grid-cols-2 gap-2 mb-4">
-                  <input className={inputCls} placeholder="BP Systolic" value={vitalsDraft.bpSystolic} onChange={e => setVitalsDraft({ ...vitalsDraft, bpSystolic: e.target.value })} inputMode="numeric" />
-                  <input className={inputCls} placeholder="BP Diastolic" value={vitalsDraft.bpDiastolic} onChange={e => setVitalsDraft({ ...vitalsDraft, bpDiastolic: e.target.value })} inputMode="numeric" />
-                  <input className={inputCls} placeholder="Pulse bpm" value={vitalsDraft.pulse} onChange={e => setVitalsDraft({ ...vitalsDraft, pulse: e.target.value })} inputMode="numeric" />
-                  <input className={inputCls} placeholder="Temp °C" value={vitalsDraft.temperatureC} onChange={e => setVitalsDraft({ ...vitalsDraft, temperatureC: e.target.value })} inputMode="decimal" />
-                  <input className={inputCls} placeholder="SpO₂ %" value={vitalsDraft.spo2} onChange={e => setVitalsDraft({ ...vitalsDraft, spo2: e.target.value })} inputMode="numeric" />
-                  <input className={inputCls} placeholder="Weight kg" value={vitalsDraft.weightKg} onChange={e => setVitalsDraft({ ...vitalsDraft, weightKg: e.target.value })} inputMode="decimal" />
-                  <input className={inputCls} placeholder="Height cm" value={vitalsDraft.heightCm} onChange={e => setVitalsDraft({ ...vitalsDraft, heightCm: e.target.value })} inputMode="decimal" />
-                  <div className="col-span-2 flex gap-2">
-                    <Button onClick={recordVitals} disabled={busy}>Save Vitals</Button>
-                    <Button variant="secondary" onClick={() => setShowVitalsForm(false)} disabled={busy}>Cancel</Button>
-                  </div>
-                </div>
-              )}
-              {encounter?.vitals ? (
-                <div className="grid grid-cols-2 gap-3">
-                  {([
-                    ['BP', encounter.vitals.bpSystolic != null && encounter.vitals.bpDiastolic != null ? `${encounter.vitals.bpSystolic}/${encounter.vitals.bpDiastolic} mmHg` : '—'],
-                    ['Pulse', encounter.vitals.pulse != null ? `${encounter.vitals.pulse} bpm` : '—'],
-                    ['Temp', encounter.vitals.temperatureC != null ? `${encounter.vitals.temperatureC}°C` : '—'],
-                    ['SpO₂', encounter.vitals.spo2 != null ? `${encounter.vitals.spo2}%` : '—'],
-                    ['Weight', encounter.vitals.weightKg != null ? `${encounter.vitals.weightKg} kg` : '—'],
-                    ['BMI', encounter.vitals.bmi != null ? String(encounter.vitals.bmi) : '—'],
-                  ] as const).map(([k, v]) => (
-                    <div key={k} className="bg-surface-50 rounded-xl p-3">
-                      <p className="text-[11px] text-surface-400 uppercase tracking-wider">{k}</p>
-                      <p className="text-[14px] font-bold text-surface-800 mt-0.5">{v}</p>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-[13px] text-surface-400">No vitals recorded yet.</p>
-              )}
-            </div>
-
             <div className="bg-gradient-to-br from-primary-500 via-primary-600 to-accent-600 rounded-2xl p-5 text-white shadow-healthcare-lg opacity-90">
               <div className="flex items-center gap-2 mb-3">
                 <Sparkles className="w-5 h-5" />
                 <h3 className="text-[14px] font-semibold">AI Pre-Consult Summary</h3>
               </div>
               <p className="text-[12px] leading-relaxed text-white/90">
-                AI scribe and summaries arrive in the M3 Intelligence phase. Clinical notes below remain doctor-authored.
+                Use “Draft with AI” to auto-fill a clinician-reviewed note from the documented context and extracted history. Nothing is issued automatically.
               </p>
+              {aiDraftReady && (
+                <div className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-white/15 px-2.5 py-1 text-[11px] font-semibold">
+                  <CheckCircle2 className="w-3.5 h-3.5" /> AI draft ready — review in tabs
+                </div>
+              )}
             </div>
 
             <div className="bg-white rounded-2xl border border-surface-100 shadow-healthcare p-5">
@@ -429,130 +474,283 @@ export default function Consultation() {
           </div>
 
           <div className="lg:col-span-2 space-y-6">
-            <div className="bg-white rounded-2xl border border-surface-100 shadow-healthcare p-5 space-y-4">
-              <div>
-                <label className="text-[13px] font-semibold text-surface-700 block mb-2">Chief Complaint</label>
-                <textarea value={chiefComplaint} disabled={locked} onChange={e => { setChiefComplaint(e.target.value); setDirty(true) }} placeholder="Presenting complaint and duration…" className={`${field} h-20`} />
-              </div>
-              <div>
-                <label className="text-[13px] font-semibold text-surface-700 block mb-2">History of Present Illness</label>
-                <textarea value={hpi} disabled={locked} onChange={e => { setHpi(e.target.value); setDirty(true) }} placeholder="Onset, progression, associated symptoms…" className={`${field} h-20`} />
-              </div>
-              <div>
-                <label className="text-[13px] font-semibold text-surface-700 block mb-2">Examination Notes</label>
-                <textarea value={examination} disabled={locked} onChange={e => { setExamination(e.target.value); setDirty(true) }} placeholder="General exam, systemic findings…" className={`${field} h-20`} />
-              </div>
-              <div>
-                <label className="text-[13px] font-semibold text-surface-700 block mb-2">Clinical Notes</label>
-                <textarea value={clinicalNotes} disabled={locked} onChange={e => { setClinicalNotes(e.target.value); setDirty(true) }} placeholder="Assessment, plan, advice…" className={`${field} h-16`} />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-[13px] font-semibold text-surface-700 block mb-2"><CalendarClock className="w-3.5 h-3.5 inline mr-1" />Follow-up Date</label>
-                  <input type="date" value={followUpDate} disabled={locked} onChange={e => { setFollowUpDate(e.target.value); setDirty(true) }} className={inputCls} />
-                </div>
-                <div>
-                  <label className="text-[13px] font-semibold text-surface-700 block mb-2">Follow-up Notes</label>
-                  <input value={followUpNotes} disabled={locked} onChange={e => { setFollowUpNotes(e.target.value); setDirty(true) }} placeholder="e.g. review HbA1c" className={inputCls} />
-                </div>
+            <div className="bg-white rounded-2xl border border-surface-100 shadow-healthcare p-1.5">
+              <div className="flex gap-1 overflow-x-auto">
+                {tabs.map(t => (
+                  <button
+                    key={t.key}
+                    onClick={() => setActiveTab(t.key)}
+                    className={`flex flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-xl px-4 py-2.5 text-[12px] font-semibold transition-all ${
+                      activeTab === t.key ? 'bg-primary-600 text-white shadow-healthcare' : 'text-surface-500 hover:bg-surface-50'
+                    }`}
+                  >
+                    <t.icon className="w-4 h-4" />
+                    {t.label}
+                    {t.badge ? <span className={`ml-1 rounded-full px-1.5 text-[10px] font-bold ${activeTab === t.key ? 'bg-white/20 text-white' : 'bg-surface-100 text-surface-500'}`}>{t.badge}</span> : null}
+                  </button>
+                ))}
               </div>
             </div>
 
-            <div className="bg-white rounded-2xl border border-surface-100 shadow-healthcare p-5">
-              <label className="text-[13px] font-semibold text-surface-700 block mb-3">Diagnoses (ICD-10)</label>
-              {encounter && encounter.diagnoses.length > 0 && (
-                <div className="space-y-2 mb-3">
-                  {encounter.diagnoses.map(d => (
-                    <div key={d.id} className="flex items-center gap-3 p-3 rounded-xl bg-surface-50 border border-surface-100">
-                      <FileText className="w-4 h-4 text-primary-500" />
-                      <div className="flex-1">
-                        <p className="text-[13px] font-medium text-surface-800">{d.icd10Name}</p>
-                        <p className="text-[11px] text-surface-400">ICD-10: {d.icd10Code}</p>
-                      </div>
-                      <span className={`px-2 py-0.5 rounded-md text-[11px] font-medium capitalize ${d.type === 'primary' ? 'bg-warning-50 text-warning-600' : 'bg-info-50 text-info-600'}`}>{d.type}</span>
-                    </div>
-                  ))}
+            {activeTab === 'soap' && (
+              <div className="bg-white rounded-2xl border border-surface-100 shadow-healthcare p-5 space-y-4">
+                <div>
+                  <label className="text-[13px] font-semibold text-surface-700 block mb-2">Chief Complaint</label>
+                  <textarea value={chiefComplaint} disabled={locked} onChange={e => { setChiefComplaint(e.target.value); setDirty(true) }} placeholder="Presenting complaint and duration…" className={`${field} h-20`} />
                 </div>
-              )}
-              {!locked && (
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                  <input className={inputCls} placeholder="ICD-10 code" value={diagCode} onChange={e => setDiagCode(e.target.value)} />
-                  <input className={`${inputCls} md:col-span-1`} placeholder="Diagnosis name" value={diagName} onChange={e => setDiagName(e.target.value)} />
-                  <select className={inputCls} value={diagType} onChange={e => setDiagType(e.target.value as typeof diagType)}>
-                    <option value="primary">Primary</option>
-                    <option value="secondary">Secondary</option>
-                    <option value="differential">Differential</option>
-                  </select>
-                  <Button onClick={submitDiagnosis} disabled={busy}><Plus className="w-4 h-4" /> Add Diagnosis</Button>
+                <div>
+                  <label className="text-[13px] font-semibold text-surface-700 block mb-2">History of Present Illness</label>
+                  <textarea value={hpi} disabled={locked} onChange={e => { setHpi(e.target.value); setDirty(true) }} placeholder="Onset, progression, associated symptoms…" className={`${field} h-20`} />
                 </div>
-              )}
-            </div>
-
-            <div className="bg-white rounded-2xl border border-surface-100 shadow-healthcare p-5">
-              <div className="flex items-center justify-between mb-3">
-                <label className="text-[13px] font-semibold text-surface-700">Prescription</label>
-                {currentRx && (
-                  <div className="flex items-center gap-2">
-                  {currentRx.items.length > 0 && (
-                    <button onClick={printPrescription} className="inline-flex items-center gap-1 rounded-lg border border-surface-200 px-2.5 py-1 text-[11px] font-semibold text-surface-600 hover:bg-surface-50">
-                      <Printer className="h-3.5 w-3.5" /> Print
-                    </button>
-                  )}
-                  <span className={`px-2 py-0.5 rounded-md text-[11px] font-semibold uppercase ${
-                    currentRx.status === 'issued' || currentRx.status === 'dispensed'
-                      ? 'bg-success-50 text-success-700 border border-success-200'
-                      : 'bg-warning-50 text-warning-700 border border-warning-200'
-                  }`}>{currentRx.status}</span>
+                <div>
+                  <label className="text-[13px] font-semibold text-surface-700 block mb-2">Examination Notes</label>
+                  <textarea value={examination} disabled={locked} onChange={e => { setExamination(e.target.value); setDirty(true) }} placeholder="General exam, systemic findings…" className={`${field} h-20`} />
+                </div>
+                <div>
+                  <label className="text-[13px] font-semibold text-surface-700 block mb-2">Clinical Notes</label>
+                  <textarea value={clinicalNotes} disabled={locked} onChange={e => { setClinicalNotes(e.target.value); setDirty(true) }} placeholder="Assessment, plan, advice…" className={`${field} h-16`} />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[13px] font-semibold text-surface-700 block mb-2"><CalendarClock className="w-3.5 h-3.5 inline mr-1" />Follow-up Date</label>
+                    <input type="date" value={followUpDate} disabled={locked} onChange={e => { setFollowUpDate(e.target.value); setDirty(true) }} className={inputCls} />
+                  </div>
+                  <div>
+                    <label className="text-[13px] font-semibold text-surface-700 block mb-2">Follow-up Notes</label>
+                    <input value={followUpNotes} disabled={locked} onChange={e => { setFollowUpNotes(e.target.value); setDirty(true) }} placeholder="e.g. review HbA1c" className={inputCls} />
+                  </div>
+                </div>
+                {!locked && (
+                  <div className="flex justify-end">
+                    <Button onClick={saveDraft} disabled={busy || !dirty}><Save className="w-4 h-4" /> Save Notes</Button>
                   </div>
                 )}
               </div>
+            )}
 
-              {!locked && <div className="mb-3 flex items-start gap-3 rounded-xl border border-primary-100 bg-primary-50/60 p-3"><Sparkles className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary-600" /><div className="flex-1"><p className="text-[12px] font-semibold text-primary-800">AI Prescription Assistant</p><p className="mt-1 text-[11px] leading-5 text-primary-700/75">Prepare a clinician-reviewed draft from the documented consultation and extracted history. Nothing is issued automatically.</p></div><button onClick={prepareAiPrescriptionDraft} disabled={busy} className="whitespace-nowrap rounded-lg bg-primary-600 px-2.5 py-1.5 text-[11px] font-semibold text-white hover:bg-primary-700">{aiDraftReady ? 'Draft ready' : 'Prepare draft'}</button></div>}
-
-              {!currentRx ? (
-                <div className="text-center py-4">
-                  <p className="text-[13px] text-surface-500 mb-3">No prescription created for this encounter.</p>
-                  {!locked && (
-                    <Button onClick={startPrescription} disabled={busy}><Pill className="w-4 h-4" /> Create Prescription</Button>
+            {activeTab === 'vitals' && (
+              <div className="bg-white rounded-2xl border border-surface-100 shadow-healthcare p-5">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-[14px] font-semibold text-surface-800">Vitals</h3>
+                  {!locked && !showVitalsForm && (
+                    <button onClick={() => setShowVitalsForm(true)} className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-primary-50 text-primary-600 text-[11px] font-medium hover:bg-primary-100 transition-colors">
+                      <Plus className="w-3 h-3" /> Record
+                    </button>
                   )}
                 </div>
-              ) : (
-                <div className="space-y-3">
-                  {currentRx.items.length > 0 && (
-                    <div className="space-y-2">
-                      {currentRx.items.map(it => (
-                        <div key={it.id} className="flex items-start gap-3 p-3 rounded-xl bg-surface-50 border border-surface-100">
-                          <Pill className="w-4 h-4 text-accent-500 mt-0.5" />
-                          <div className="flex-1">
-                            <p className="text-[13px] font-semibold text-surface-800">
-                              {it.drugName}{it.strength ? ` ${it.strength}` : ''}
-                            </p>
-                            <p className="text-[12px] text-surface-500">{it.dosage} · {it.frequency}{it.durationDays ? ` · ${it.durationDays} days` : ''}</p>
-                          </div>
-                        </div>
-                      ))}
+                {showVitalsForm && (
+                  <div className="grid grid-cols-2 gap-2 mb-4">
+                    <input className={inputCls} placeholder="BP Systolic" value={vitalsDraft.bpSystolic} onChange={e => setVitalsDraft({ ...vitalsDraft, bpSystolic: e.target.value })} inputMode="numeric" />
+                    <input className={inputCls} placeholder="BP Diastolic" value={vitalsDraft.bpDiastolic} onChange={e => setVitalsDraft({ ...vitalsDraft, bpDiastolic: e.target.value })} inputMode="numeric" />
+                    <input className={inputCls} placeholder="Pulse bpm" value={vitalsDraft.pulse} onChange={e => setVitalsDraft({ ...vitalsDraft, pulse: e.target.value })} inputMode="numeric" />
+                    <input className={inputCls} placeholder="Temp °C" value={vitalsDraft.temperatureC} onChange={e => setVitalsDraft({ ...vitalsDraft, temperatureC: e.target.value })} inputMode="decimal" />
+                    <input className={inputCls} placeholder="SpO₂ %" value={vitalsDraft.spo2} onChange={e => setVitalsDraft({ ...vitalsDraft, spo2: e.target.value })} inputMode="numeric" />
+                    <input className={inputCls} placeholder="Weight kg" value={vitalsDraft.weightKg} onChange={e => setVitalsDraft({ ...vitalsDraft, weightKg: e.target.value })} inputMode="decimal" />
+                    <input className={inputCls} placeholder="Height cm" value={vitalsDraft.heightCm} onChange={e => setVitalsDraft({ ...vitalsDraft, heightCm: e.target.value })} inputMode="decimal" />
+                    <div className="col-span-2 flex gap-2">
+                      <Button onClick={recordVitals} disabled={busy}>Save Vitals</Button>
+                      <Button variant="secondary" onClick={() => setShowVitalsForm(false)} disabled={busy}>Cancel</Button>
                     </div>
-                  )}
+                  </div>
+                )}
+                {encounter?.vitals ? (
+                  <div className="grid grid-cols-2 gap-3">
+                    {([
+                      ['BP', encounter.vitals.bpSystolic != null && encounter.vitals.bpDiastolic != null ? `${encounter.vitals.bpSystolic}/${encounter.vitals.bpDiastolic} mmHg` : '—'],
+                      ['Pulse', encounter.vitals.pulse != null ? `${encounter.vitals.pulse} bpm` : '—'],
+                      ['Temp', encounter.vitals.temperatureC != null ? `${encounter.vitals.temperatureC}°C` : '—'],
+                      ['SpO₂', encounter.vitals.spo2 != null ? `${encounter.vitals.spo2}%` : '—'],
+                      ['Weight', encounter.vitals.weightKg != null ? `${encounter.vitals.weightKg} kg` : '—'],
+                      ['BMI', encounter.vitals.bmi != null ? String(encounter.vitals.bmi) : '—'],
+                    ] as const).map(([k, v]) => (
+                      <div key={k} className="bg-surface-50 rounded-xl p-3">
+                        <p className="text-[11px] text-surface-400 uppercase tracking-wider">{k}</p>
+                        <p className="text-[14px] font-bold text-surface-800 mt-0.5">{v}</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-[13px] text-surface-400">No vitals recorded yet.</p>
+                )}
+              </div>
+            )}
 
-                  {currentRx.status === 'draft' && !locked && (
-                    <>
-                      <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
-                        <input className={inputCls} placeholder="Drug name" value={rxDrug} onChange={e => setRxDrug(e.target.value)} />
-                        <input className={inputCls} placeholder="Dosage e.g. 500mg" value={RxDosage} onChange={e => setRxDosage(e.target.value)} />
-                        <input className={inputCls} placeholder="Frequency e.g. TDS" value={rxFrequency} onChange={e => setRxFrequency(e.target.value)} />
-                        <input className={inputCls} placeholder="Days" value={rxDuration} onChange={e => setRxDuration(e.target.value)} inputMode="numeric" />
-                        <Button onClick={appendRxItem} disabled={busy}><Plus className="w-4 h-4" /> Add Item</Button>
+            {activeTab === 'diagnosis' && (
+              <div className="bg-white rounded-2xl border border-surface-100 shadow-healthcare p-5">
+                <label className="text-[13px] font-semibold text-surface-700 block mb-3">Diagnoses (ICD-10)</label>
+                {encounter && encounter.diagnoses.length > 0 && (
+                  <div className="space-y-2 mb-3">
+                    {encounter.diagnoses.map(d => (
+                      <div key={d.id} className="flex items-center gap-3 p-3 rounded-xl bg-surface-50 border border-surface-100">
+                        <FileText className="w-4 h-4 text-primary-500" />
+                        <div className="flex-1">
+                          <p className="text-[13px] font-medium text-surface-800">{d.icd10Name}</p>
+                          <p className="text-[11px] text-surface-400">ICD-10: {d.icd10Code}</p>
+                        </div>
+                        <span className={`px-2 py-0.5 rounded-md text-[11px] font-medium capitalize ${d.type === 'primary' ? 'bg-warning-50 text-warning-600' : 'bg-info-50 text-info-600'}`}>{d.type}</span>
                       </div>
-                      <div className="flex justify-end">
-                        <Button variant="secondary" onClick={issuePrescription} disabled={busy || currentRx.items.length === 0}>
-                          <Ban className="w-4 h-4 rotate-180" /> Issue Prescription
-                        </Button>
+                    ))}
+                  </div>
+                )}
+                {!locked && (
+                  <div className="space-y-2">
+                    <Autocomplete
+                      value={diagName}
+                      onChange={v => setDiagName(v)}
+                      placeholder="Search diagnosis or ICD-10 code…"
+                      options={searchIcd10(diagName).map(d => ({
+                        key: d.code,
+                        primary: d.name,
+                        secondary: `ICD-10: ${d.code}`,
+                        onSelect: () => { setDiagName(d.name); setDiagCode(d.code) },
+                      }))}
+                    />
+                    <div className="flex items-center gap-2">
+                      <input className={`${inputCls} w-32`} placeholder="Code" value={diagCode} onChange={e => setDiagCode(e.target.value)} />
+                      <select className={inputCls} value={diagType} onChange={e => setDiagType(e.target.value as typeof diagType)}>
+                        <option value="primary">Primary</option>
+                        <option value="secondary">Secondary</option>
+                        <option value="differential">Differential</option>
+                      </select>
+                      <Button onClick={submitDiagnosis} disabled={busy}><Plus className="w-4 h-4" /> Add Diagnosis</Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {activeTab === 'rx' && (
+              <div className="bg-white rounded-2xl border border-surface-100 shadow-healthcare p-5">
+                <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                  <label className="text-[13px] font-semibold text-surface-700">Prescription</label>
+                  <div className="flex items-center gap-2">
+                    {!currentRx && !locked && (
+                      <Button size="sm" onClick={startPrescription} disabled={busy}><Pill className="w-4 h-4" /> Create</Button>
+                    )}
+                    {currentRx?.items.length ? (
+                      <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1 rounded-lg border border-surface-200 px-2 py-1">
+                          <Languages className="w-3.5 h-3.5 text-surface-400" />
+                          <select value={printLang} onChange={e => setPrintLang(e.target.value)} className="bg-transparent text-[11px] font-medium text-surface-600 focus:outline-none">
+                            {PRINT_LANGUAGES.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}
+                          </select>
+                        </div>
+                        <button onClick={printPrescription} className="inline-flex items-center gap-1 rounded-lg border border-surface-200 px-2.5 py-1.5 text-[11px] font-semibold text-surface-600 hover:bg-surface-50">
+                          <Printer className="h-3.5 w-3.5" /> Print
+                        </button>
                       </div>
-                    </>
-                  )}
+                    ) : null}
+                    {currentRx && (
+                      <span className={`px-2 py-0.5 rounded-md text-[11px] font-semibold uppercase ${
+                        currentRx.status === 'issued' || currentRx.status === 'dispensed'
+                          ? 'bg-success-50 text-success-700 border border-success-200'
+                          : 'bg-warning-50 text-warning-700 border border-warning-200'
+                      }`}>{currentRx.status}</span>
+                    )}
+                  </div>
                 </div>
-              )}
-            </div>
+
+                {!locked && currentRx && (
+                  <div className="mb-3 flex flex-col gap-3 rounded-xl border border-primary-100 bg-primary-50/60 p-3 sm:flex-row sm:items-center">
+                    <div className="flex flex-1 items-start gap-3">
+                      <Sparkles className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary-600" />
+                      <div>
+                        <p className="text-[12px] font-semibold text-primary-800">AI Prescription Assistant</p>
+                        <p className="mt-0.5 text-[11px] leading-5 text-primary-700/75">Draft a clinician-reviewed note and get medicine suggestions from the documented context.</p>
+                      </div>
+                    </div>
+                    <button onClick={prepareAiDraft} disabled={aiThinking || busy} className="whitespace-nowrap rounded-lg bg-primary-600 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-primary-700 disabled:opacity-60">
+                      {aiThinking ? 'Drafting…' : aiDraftReady ? 'Re-draft' : 'Draft with AI'}
+                    </button>
+                  </div>
+                )}
+
+                {!locked && currentRx && (
+                  <button onClick={() => setShowTemplates(true)} className="mb-3 inline-flex items-center gap-1.5 rounded-lg border border-accent-200 bg-accent-50 px-3 py-1.5 text-[12px] font-semibold text-accent-700 hover:bg-accent-100 transition-colors">
+                    <Bookmark className="w-3.5 h-3.5" /> Apply Rx Template
+                  </button>
+                )}
+
+                {!currentRx ? (
+                  <div className="text-center py-4">
+                    <p className="text-[13px] text-surface-500 mb-3">No prescription created for this encounter.</p>
+                    {!locked && <Button onClick={startPrescription} disabled={busy}><Pill className="w-4 h-4" /> Create Prescription</Button>}
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {currentRx.items.length > 0 && (
+                      <div className="space-y-2">
+                        {currentRx.items.map(it => (
+                          <div key={it.id} className="flex items-start gap-3 p-3 rounded-xl bg-surface-50 border border-surface-100">
+                            <Pill className="w-4 h-4 text-accent-500 mt-0.5" />
+                            <div className="flex-1">
+                              <p className="text-[13px] font-semibold text-surface-800">{it.drugName}{it.strength ? ` ${it.strength}` : ''}{it.genericName ? <span className="text-[11px] font-normal text-surface-400"> · {it.genericName}</span> : null}</p>
+                              <p className="text-[12px] text-surface-500">{it.dosage} · {it.frequency}{it.durationDays ? ` · ${it.durationDays} days` : ''}{it.instructions ? ` · ${it.instructions}` : ''}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {aiSuggestions.length > 0 && (
+                      <div className="rounded-xl border border-accent-200 bg-accent-50/50 p-3">
+                        <p className="mb-2 flex items-center gap-1.5 text-[12px] font-semibold text-accent-700"><Sparkles className="w-3.5 h-3.5" /> AI suggested medicines (review &amp; add)</p>
+                        <div className="flex flex-wrap gap-2">
+                          {aiSuggestions.map((s, i) => (
+                            <button key={i} onClick={() => { appendRxItem(s); setAiSuggestions(prev => prev.filter((_, j) => j !== i)) }} className="rounded-lg border border-accent-200 bg-white px-2.5 py-1.5 text-left text-[11px] font-medium text-surface-700 hover:border-accent-400">
+                              + {s.drugName} {s.strength} · {s.frequency}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {currentRx.status === 'draft' && !locked && (
+                      <>
+                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                          <Autocomplete
+                            value={rxDrug}
+                            onChange={v => setRxDrug(v)}
+                            placeholder="Drug name (brand or generic)…"
+                            options={searchDrugs(rxDrug).map(d => ({
+                              key: d.brand,
+                              primary: `${d.brand} (${d.generic})`,
+                              secondary: `${d.strength} · ${d.form} · ${d.category}`,
+                              onSelect: () => {
+                                setRxDrug(d.brand); setRxGeneric(d.generic); setRxStrength(d.strength); setRxForm(d.form)
+                                if (!RxDosage) setRxDosage(d.commonDosages[0])
+                                if (!rxFrequency) setRxFrequency(d.commonFrequencies[0])
+                                if (!rxDuration) setRxDuration(String(d.commonDurations[0]))
+                              },
+                            }))}
+                          />
+                          <input className={inputCls} placeholder="Strength e.g. 500 mg" value={rxStrength} onChange={e => setRxStrength(e.target.value)} />
+                          <input className={inputCls} placeholder="Form e.g. Tablet" value={rxForm} onChange={e => setRxForm(e.target.value)} />
+                          <input className={inputCls} placeholder="Dosage e.g. 500mg" value={RxDosage} onChange={e => setRxDosage(e.target.value)} />
+                          <Autocomplete
+                            value={rxFrequency}
+                            onChange={v => setRxFrequency(v)}
+                            placeholder="Frequency e.g. BD"
+                            options={COMMON_FREQUENCIES.map(f => ({ key: f, primary: f, onSelect: () => setRxFrequency(f) }))}
+                          />
+                          <input className={inputCls} placeholder="Days" value={rxDuration} onChange={e => setRxDuration(e.target.value)} inputMode="numeric" />
+                          <input className={`${inputCls} sm:col-span-2`} placeholder="Instructions e.g. after food" value={rxInstructions} onChange={e => setRxInstructions(e.target.value)} />
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] text-surface-400 inline-flex items-center gap-1"><ScanLine className="w-3 h-3" /> Generic names shown for transparency</span>
+                          <Button onClick={addCurrentRx} disabled={busy}><Plus className="w-4 h-4" /> Add Medicine</Button>
+                        </div>
+                        <div className="flex justify-end">
+                          <Button variant="secondary" onClick={issuePrescription} disabled={busy || currentRx.items.length === 0}>
+                            <Ban className="w-4 h-4 rotate-180" /> Issue Prescription
+                          </Button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
 
             <div className="bg-white rounded-2xl border border-surface-100 shadow-healthcare p-5">
               <h3 className="text-[14px] font-semibold text-surface-800 mb-4">Previous Consultations</h3>
@@ -582,6 +780,12 @@ export default function Consultation() {
           </div>
         </div>
       )}
+      <RxTemplatePicker
+        open={showTemplates}
+        onClose={() => setShowTemplates(false)}
+        onApply={applyTemplate}
+        currentItems={[{ drugName: rxDrug, genericName: rxGeneric, strength: rxStrength, form: rxForm, dosage: RxDosage, frequency: rxFrequency, durationDays: rxDuration === '' ? undefined : Number(rxDuration), instructions: rxInstructions }]}
+      />
     </div>
   )
 }

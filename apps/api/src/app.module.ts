@@ -23,6 +23,11 @@ import { ProceduresController } from './procedures/procedures.controller.js'
 import { ProceduresService } from './procedures/procedures.service.js'
 import { PharmacyController } from './pharmacy/pharmacy.controller.js'
 import { PharmacyService } from './pharmacy/pharmacy.service.js'
+import { DrugMasterModule } from './drug-master/drug-master.module.js'
+import { Icd10Module } from './icd10/icd10.module.js'
+import { RxTemplatesModule } from './rx-templates/rx-templates.module.js'
+import { NotificationsModule } from './notifications/notifications.module.js'
+import { AiJobsModule } from './ai-jobs/ai-jobs.module.js'
 
 @Module({
   controllers: [
@@ -47,6 +52,17 @@ import { PharmacyService } from './pharmacy/pharmacy.service.js'
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: PermissionsGuard },
   ],
-  imports: [DbModule, EncountersModule, PrescriptionsModule, BillingModule, AuditModule],
+  imports: [
+    DbModule,
+    EncountersModule,
+    PrescriptionsModule,
+    BillingModule,
+    AuditModule,
+    DrugMasterModule,
+    Icd10Module,
+    RxTemplatesModule,
+    NotificationsModule,
+    AiJobsModule,
+  ],
 })
 export class AppModule {}

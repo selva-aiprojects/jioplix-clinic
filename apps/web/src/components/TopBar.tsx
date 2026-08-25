@@ -2,9 +2,11 @@ import { Menu, Search, Bell, ChevronDown, Sparkles, LogOut, Settings, ShieldChec
 import { useEffect, useRef, useState } from 'react'
 import { clinicTypeLabel } from '@jioplix/contracts'
 import { useAuth } from '../auth/useAuth'
+import { unreadCount } from '../lib/notifications'
 
 interface TopBarProps {
   onMenuToggle: () => void
+  onBellClick: () => void
 }
 
 function initialsOf(fullName: string): string {
@@ -14,11 +16,19 @@ function initialsOf(fullName: string): string {
   return (first + last).toUpperCase() || '?'
 }
 
-export default function TopBar({ onMenuToggle }: TopBarProps) {
+export default function TopBar({ onMenuToggle, onBellClick }: TopBarProps) {
   const [searchFocused, setSearchFocused] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [bellUnread, setBellUnread] = useState(0)
   const menuRef = useRef<HTMLDivElement>(null)
   const { user, logout } = useAuth()
+
+  useEffect(() => {
+    setBellUnread(unreadCount())
+    const onChanged = () => setBellUnread(unreadCount())
+    window.addEventListener('jioplix:notifications-changed', onChanged)
+    return () => window.removeEventListener('jioplix:notifications-changed', onChanged)
+  }, [])
 
   useEffect(() => {
     if (!menuOpen) return
@@ -88,11 +98,16 @@ export default function TopBar({ onMenuToggle }: TopBarProps) {
 
         {/* Notifications */}
         <button
+          onClick={onBellClick}
           className="relative p-2.5 rounded-xl hover:bg-surface-100 text-surface-500 hover:text-surface-700 transition-colors"
-          aria-label="Notifications"
+          aria-label={`Notifications${bellUnread ? `, ${bellUnread} unread` : ''}`}
         >
           <Bell className="w-4.5 h-4.5" />
-          <span className="absolute top-2 right-2 w-2 h-2 bg-danger-500 rounded-full ring-2 ring-white" />
+          {bellUnread > 0 && (
+            <span className="absolute top-1.5 right-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger-500 px-1 text-[9px] font-bold text-white ring-2 ring-white">
+              {bellUnread > 9 ? '9+' : bellUnread}
+            </span>
+          )}
         </button>
 
         {/* User profile menu */}

@@ -26,6 +26,13 @@ export class PatientsController {
     return { data: row }
   }
 
+  @Get(':id/vitals')
+  @RequirePermissions('patients:read')
+  async vitals(@CurrentTenant() tenant: TenantContext, @Param('id') id: string) {
+    return { data: await this.patients.vitalsHistory(tenant.schemaName, id) }
+  }
+}
+
   @Post()
   @RequirePermissions('patients:create')
   async create(@CurrentTenant() tenant: TenantContext, @Body() body: unknown) {

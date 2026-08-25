@@ -700,3 +700,173 @@ export async function listDispenseQueue(): Promise<DispenseQueueItem[]> {
 export async function dispensePrescription(prescriptionId: string): Promise<DispenseQueueItem> {
   return api<DispenseQueueItem>(`/pharmacy/prescriptions/${prescriptionId}/dispense`, { method: 'POST' })
 }
+
+/* ============================ Drug Master ============================ */
+
+export interface DrugMasterEntry {
+  id: string
+  brand: string
+  generic: string
+  strength: string | null
+  form: string | null
+  commonDosages: string[]
+  commonFrequencies: string[]
+  commonDurations: number[]
+  category: string | null
+}
+
+export async function searchDrugsApi(q = '', limit = 12): Promise<DrugMasterEntry[]> {
+  const qs = new URLSearchParams({ q, limit: String(limit) })
+  return api<DrugMasterEntry[]>(`/drugs?${qs.toString()}`)
+}
+
+/* ============================ ICD-10 ============================ */
+
+export interface Icd10Entry {
+  id: string
+  code: string
+  name: string
+  isCommon: boolean
+}
+
+export async function searchIcd10Api(q = '', limit = 12): Promise<Icd10Entry[]> {
+  const qs = new URLSearchParams({ q, limit: String(limit) })
+  return api<Icd10Entry[]>(`/icd10?${qs.toString()}`)
+}
+
+/* ============================ Rx Templates ============================ */
+
+export interface RxTemplateItem {
+  id: string
+  drugName: string
+  genericName: string | null
+  strength: string | null
+  form: string | null
+  dosage: string
+  frequency: string
+  durationDays: number | null
+  instructions: string | null
+  sequence: number
+}
+
+export interface RxTemplate {
+  id: string
+  name: string
+  category: string
+  createdBy: string | null
+  createdAt: string
+  items: RxTemplateItem[]
+}
+
+export async function listRxTemplatesApi(): Promise<RxTemplate[]> {
+  return api<RxTemplate[]>('/rx-templates')
+}
+
+export async function saveRxTemplateApi(input: {
+  name: string
+  category: string
+  items: Array<Partial<RxTemplateItem> & { drugName: string; dosage: string; frequency: string }>
+}): Promise<RxTemplate> {
+  return api<RxTemplate>('/rx-templates', { method: 'POST', body: input })
+}
+
+export async function deleteRxTemplateApi(id: string): Promise<{ id: string }> {
+  return api<{ id: string }>(`/rx-templates/${id}`, { method: 'DELETE' })
+}
+
+/* ============================ Notifications ============================ */
+
+export type NotificationCategory = 'clinical' | 'billing' | 'system' | 'engagement'
+
+export interface AppNotification {
+  id: string
+  recipientUserId: string | null
+  category: NotificationCategory
+  title: string
+  body: string
+  href: string | null
+  isRead: boolean
+  createdAt: string
+}
+
+export async function listNotifications(unread?: boolean): Promise<AppNotification[]> {
+  const qs = new URLSearchParams()
+  if (unread) qs.set('unread', 'true')
+  const q = qs.toString()
+  return api<AppNotification[]>(`/notifications${q ? `?${q}` : ''}`)
+}
+
+export async function markNotificationRead(id: string): Promise<{ id: string; isRead: boolean }> {
+  return api<{ id: string; isRead: boolean }>(`/notifications/${id}/read`, { method: 'PATCH' })
+}
+
+export async function markAllNotificationsRead(): Promise<{ updated: number }> {
+  return api<{ updated: number }>('/notifications/mark-all-read', { method: 'POST' })
+}
+
+export async function pushNotificationApi(input: {
+  category: NotificationCategory
+  title: string
+  body: string
+  href?: string | null
+}): Promise<AppNotification> {
+  return api<AppNotification>('/notifications', { method: 'POST', body: input })
+}
+
+/* ============================ AI Jobs (Draft with AI) ============================ */
+
+export interface AiJobDraftItem {
+  drugName: string
+  genericName?: string
+  strength?: string
+  form?: string
+  dosage: string
+  frequency: string
+  durationDays?: number
+  instructions?: string
+}
+
+export interface AiJobResult {
+  soap: {
+    chiefComplaint: string
+    historyPresentIllness: string
+    examinationFindings: string
+    clinicalNotes: string
+  }
+  suggestions: AiJobDraftItem[]
+}
+
+export interface AiJob {
+  id: string
+  encounterId: string | null
+  status: 'pending' | 'processing' | 'completed' | 'failed'
+  context: { chiefComplaint?: string; history?: string; extractedText?: string } | null
+  result: AiJobResult | null
+  createdAt: string
+  updatedAt: string
+}
+
+export async function createAiJob(input: {
+  encounterId?: string
+  context?: { chiefComplaint?: string; history?: string; extractedText?: string }
+}): Promise<AiJob> {
+  return api<AiJob>('/ai-jobs', { method: 'POST', body: input })
+}
+
+export async function getAiJob(id: string): Promise<AiJob> {
+  return api<AiJob>(`/ai-jobs/${id}`)
+}
+
+/* ============================ Vitals History ============================ */
+
+export interface VitalsSnapshot {
+  date: string
+  bpSystolic: number | null
+  bpDiastolic: number | null
+  pulse: number | null
+  weightKg: number | null
+}
+
+export async function listVitalsHistory(patientId: string): Promise<VitalsSnapshot[]> {
+  return api<VitalsSnapshot[]>(`/patients/${patientId}/vitals`)
+}

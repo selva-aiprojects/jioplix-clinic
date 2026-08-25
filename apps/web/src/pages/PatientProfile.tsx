@@ -2,12 +2,16 @@ import { useParams, Link } from 'react-router-dom'
 import {
   ArrowLeft, Phone, Mail, Shield, Calendar,
   MapPin, Printer, ClipboardList, ReceiptText,
-  Lock, ArrowUpRight,
+  Lock, ArrowUpRight, Activity,
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import {
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+} from 'recharts'
 import { Button } from '../components/ui'
 import { getPatient, listPatientEncounters, listInvoices, getPatientOutstanding } from '../lib/api'
 import type { Patient, PatientEncounterSummary, Invoice } from '../lib/api'
+import { getVitalsHistory } from '../lib/vitalsHistory'
 
 function formatPaise(paise: number): string {
   return `₹${(paise / 100).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`
@@ -58,6 +62,15 @@ export default function PatientProfile() {
   const p = patient ?? { ...defaultPatient, id: id || '' } as Patient
   const fullName = `${p.firstName || ''} ${p.lastName || ''}`.trim() || 'Patient Profile'
   const dobAge = p.dateOfBirth ? Math.max(0, Math.floor((Date.now() - new Date(p.dateOfBirth).getTime()) / (365.25 * 24 * 60 * 60 * 1000))) : null
+
+  const vitalsTrend = getVitalsHistory(p.id)
+    .map(v => ({
+      label: new Date(v.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }),
+      weightKg: v.weightKg ?? null,
+      bpSystolic: v.bpSystolic ?? null,
+      bpDiastolic: v.bpDiastolic ?? null,
+    }))
+    .filter(v => v.weightKg != null || v.bpSystolic != null)
 
   return (
     <div className="space-y-6">
@@ -162,6 +175,44 @@ export default function PatientProfile() {
                 <p className="text-[16px] font-bold text-warning-700 mt-0.5">{formatPaise(outstanding)}</p>
               </div>
             </div>
+          </div>
+
+          <div className="bg-white rounded-2xl border border-surface-100 shadow-healthcare p-5">
+            <div className="flex items-center gap-2 mb-3">
+              <Activity className="w-4 h-4 text-primary-600" />
+              <h3 className="text-[14px] font-semibold text-surface-800">Vitals Trend</h3>
+            </div>
+            {vitalsTrend.length === 0 ? (
+              <p className="text-[12px] text-surface-400">Vitals recorded during consultations will chart here over time.</p>
+            ) : (
+              <div className="space-y-4">
+                <div>
+                  <p className="mb-1 text-[12px] font-medium text-surface-600">Weight (kg)</p>
+                  <ResponsiveContainer width="100%" height={120}>
+                    <LineChart data={vitalsTrend}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#eef4f8" vertical={false} />
+                      <XAxis dataKey="label" tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+                      <YAxis tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} width={28} />
+                      <Tooltip contentStyle={{ borderRadius: 12, border: '1px solid #e2e8f0', fontSize: 12 }} />
+                      <Line type="monotone" dataKey="weightKg" stroke="#08bfa9" strokeWidth={2} dot={{ r: 3 }} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+                <div>
+                  <p className="mb-1 text-[12px] font-medium text-surface-600">Blood Pressure (mmHg)</p>
+                  <ResponsiveContainer width="100%" height={120}>
+                    <LineChart data={vitalsTrend}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#eef4f8" vertical={false} />
+                      <XAxis dataKey="label" tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+                      <YAxis tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} width={28} />
+                      <Tooltip contentStyle={{ borderRadius: 12, border: '1px solid #e2e8f0', fontSize: 12 }} />
+                      <Line type="monotone" dataKey="bpSystolic" stroke="#1265e8" strokeWidth={2} dot={{ r: 3 }} name="Systolic" />
+                      <Line type="monotone" dataKey="bpDiastolic" stroke="#f59e0b" strokeWidth={2} dot={{ r: 3 }} name="Diastolic" />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 

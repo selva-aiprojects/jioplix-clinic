@@ -3,16 +3,18 @@ import { Outlet } from 'react-router-dom'
 import Sidebar from './Sidebar'
 import TopBar from './TopBar'
 import Chatbot from './Chatbot'
+import NotificationPanel from './NotificationPanel'
 
 export default function Layout() {
   const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [notifOpen, setNotifOpen] = useState(false)
 
   return (
     <div className="flex w-full min-h-screen">
       <Sidebar collapsed={collapsed} mobileOpen={mobileOpen} onToggle={() => setCollapsed(!collapsed)} onMobileClose={() => setMobileOpen(false)} />
       <div className={`flex-1 flex flex-col min-h-screen transition-all duration-300 ${collapsed ? 'ml-[72px]' : 'ml-[260px]'} max-md:ml-0`}>
-        <TopBar onMenuToggle={() => setMobileOpen(!mobileOpen)} />
+        <TopBar onMenuToggle={() => setMobileOpen(!mobileOpen)} onBellClick={() => setNotifOpen(v => !v)} />
         <main className="flex-1 p-6 max-md:p-4 overflow-auto">
           <Outlet />
         </main>
@@ -21,6 +23,7 @@ export default function Layout() {
         <div className="fixed inset-0 bg-black/30 z-30 md:hidden" onClick={() => setMobileOpen(false)} />
       )}
       <Chatbot />
+      <NotificationPanel open={notifOpen} onClose={() => setNotifOpen(false)} />
     </div>
   )
 }

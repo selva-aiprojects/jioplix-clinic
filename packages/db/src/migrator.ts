@@ -20,7 +20,7 @@ const DEFAULT_ROLES: Array<{ key: string; name: string; permissions: string[] }>
   {
     key: 'doctor',
     name: 'Doctor',
-    permissions: ['patients:read', 'patients:create', 'appointments:read', 'appointments:update', 'queue:read', 'encounters:*', 'vitals:*', 'diagnoses:*', 'prescriptions:*', 'lab_orders:*', 'procedures:*', 'inventory:read', 'invoices:read'],
+    permissions: ['patients:read', 'patients:create', 'appointments:read', 'appointments:update', 'queue:read', 'encounters:*', 'vitals:*', 'diagnoses:*', 'prescriptions:*', 'lab_orders:*', 'procedures:*', 'inventory:read', 'invoices:read', 'notifications:create'],
   },
   {
     key: 'receptionist',
