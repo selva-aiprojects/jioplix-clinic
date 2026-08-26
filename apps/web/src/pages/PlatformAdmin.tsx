@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   AlertCircle, Building2, CheckCircle2, Loader2,
-  Pause, Play, Settings, Shield, Users, Wallet, XCircle, ExternalLink,
+  Pause, Play, Settings, Shield, Users, Wallet, XCircle, ExternalLink, Headphones,
 } from 'lucide-react'
 import {
   platformLogin, platformListTenants, platformTenantAction, platformDashboard,
@@ -159,6 +159,9 @@ export default function PlatformAdmin() {
           </div>
           <div className="flex items-center gap-4">
             <span className="text-[12px] text-surface-500">{user.fullName}</span>
+            <Link to="/admin/tickets" className="inline-flex items-center gap-1 text-[12px] font-semibold text-surface-400 hover:text-primary-600 transition-colors">
+              <Headphones className="w-3.5 h-3.5" /> Tickets
+            </Link>
             <Link to="/admin/settings" className="inline-flex items-center gap-1 text-[12px] font-semibold text-surface-400 hover:text-primary-600 transition-colors">
               <Settings className="w-3.5 h-3.5" /> Settings
             </Link>

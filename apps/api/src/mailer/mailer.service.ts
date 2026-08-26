@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common'
-import nodemailer from 'nodemailer'
+import { Resend } from 'resend'
 
 export interface EmailMessage {
   to: string
@@ -16,41 +16,31 @@ export interface SmsMessage {
 @Injectable()
 export class MailerService {
   private readonly logger = new Logger(MailerService.name)
-  private transporter: nodemailer.Transporter | null = null
+  private readonly resend: Resend | null = null
+  private readonly fromAddress: string
 
   constructor() {
-    this.initTransporter()
-  }
+    const apiKey = process.env.RESEND_API_KEY
+    this.fromAddress = process.env.RESEND_FROM ?? 'HIMS Onboarding <onboarding@cognivectra.com>'
 
-  private initTransporter(): void {
-    const host = process.env.SMTP_HOST
-    const port = Number(process.env.SMTP_PORT ?? 587)
-    const user = process.env.SMTP_USER
-    const pass = process.env.SMTP_PASS
-
-    if (host && user && pass) {
-      this.transporter = nodemailer.createTransport({
-        host,
-        port,
-        secure: port === 465,
-        auth: { user, pass },
-      })
-      this.logger.log(`[MAILER] SMTP configured: ${host}:${port}`)
+    if (apiKey) {
+      this.resend = new Resend(apiKey)
+      this.logger.log('[MAILER] Resend configured')
     } else {
-      this.logger.log('[MAILER] No SMTP configured — emails will be logged to console')
+      this.logger.log('[MAILER] No RESEND_API_KEY — emails will be logged to console')
     }
   }
 
   async sendEmail(msg: EmailMessage): Promise<boolean> {
-    if (!this.transporter) {
+    if (!this.resend) {
       this.logger.log(`[EMAIL STUB] To: ${msg.to} | Subject: ${msg.subject}`)
-      this.logger.log(`[EMAIL BODY] ${msg.text ?? msg.html}`)
+      this.logger.log(`[EMAIL BODY] ${msg.text ?? msg.html.substring(0, 200)}`)
       return true
     }
     try {
-      await this.transporter.sendMail({
-        from: process.env.SMTP_FROM ?? process.env.SMTP_USER ?? 'noreply@jioplix.com',
-        to: msg.to,
+      await this.resend.emails.send({
+        from: this.fromAddress,
+        to: [msg.to],
         subject: msg.subject,
         html: msg.html,
         text: msg.text,
@@ -100,7 +90,7 @@ export class MailerService {
         <div style="background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
           <p style="color: #92400e; font-size: 13px; margin: 0;">
             <strong>Important:</strong> You have a 14-day free trial. Log in at
-            <a href="https://app.jioplix.com/login" style="color: #1265e8;">app.jioplix.com</a> to get started.
+            <a href="https://jioplix-clinic.vercel.app/login" style="color: #1265e8;">jioplix-clinic.vercel.app</a> to get started.
           </p>
         </div>
         <p style="color: #94a3b8; font-size: 12px; text-align: center;">
@@ -108,7 +98,7 @@ export class MailerService {
         </p>
       </div>
     `
-    const text = `Welcome to Jioplix!\n\nClinic: ${opts.clinicName}\nClinic ID: ${opts.slug}\nEmail: ${opts.email}\nPassword: ${opts.password}\nPlan: ${opts.planCode}\n\nLog in at https://app.jioplix.com/login`
+    const text = `Welcome to Jioplix!\n\nClinic: ${opts.clinicName}\nClinic ID: ${opts.slug}\nEmail: ${opts.email}\nPassword: ${opts.password}\nPlan: ${opts.planCode}\n\nLog in at https://jioplix-clinic.vercel.app/login`
     return this.sendEmail({ to: opts.to, subject, html, text })
   }
 
@@ -127,19 +117,70 @@ export class MailerService {
           <p style="color: #64748b; font-size: 14px; margin-top: 8px;">Your clinic access has been temporarily suspended.</p>
         </div>
         <div style="background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 24px; margin-bottom: 16px;">
-          <p style="color: #1e293b; font-size: 14px; margin: 0 0 12px 0;">
-            <strong>Clinic:</strong> ${opts.clinicName} (${opts.slug})
-          </p>
-          <p style="color: #1e293b; font-size: 14px; margin: 0 0 12px 0;">
-            <strong>Reason:</strong> ${opts.reason}
-          </p>
-          <p style="color: #1e293b; font-size: 14px; margin: 0;">
-            <strong>To reactivate:</strong> Please renew your subscription or contact our support team.
-          </p>
+          <p style="color: #1e293b; font-size: 14px; margin: 0 0 12px 0;"><strong>Clinic:</strong> ${opts.clinicName} (${opts.slug})</p>
+          <p style="color: #1e293b; font-size: 14px; margin: 0 0 12px 0;"><strong>Reason:</strong> ${opts.reason}</p>
+          <p style="color: #1e293b; font-size: 14px; margin: 0;"><strong>To reactivate:</strong> Renew your subscription or contact support.</p>
         </div>
-        <p style="color: #94a3b8; font-size: 12px; text-align: center;">
-          Jioplix — AI-Powered Clinic Operating System
-        </p>
+        <div style="text-align: center; margin-bottom: 16px;">
+          <a href="https://jioplix-clinic.vercel.app/suspended" style="display: inline-block; background: #1265e8; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 14px;">Renew Now</a>
+        </div>
+        <p style="color: #94a3b8; font-size: 12px; text-align: center;">Jioplix — AI-Powered Clinic Operating System</p>
+      </div>
+    `
+    return this.sendEmail({ to: opts.to, subject, html })
+  }
+
+  async sendPasswordResetEmail(opts: {
+    to: string
+    userName: string
+    resetLink: string
+  }): Promise<boolean> {
+    const subject = 'Jioplix — Reset your password'
+    const html = `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 560px; margin: 0 auto; padding: 32px; background: #f7fbff; border-radius: 12px;">
+        <div style="text-align: center; margin-bottom: 24px;">
+          <h1 style="color: #1265e8; font-size: 24px; margin: 0;">Password Reset</h1>
+          <p style="color: #64748b; font-size: 14px; margin-top: 8px;">We received a request to reset your password.</p>
+        </div>
+        <div style="background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 24px; margin-bottom: 16px;">
+          <p style="color: #1e293b; font-size: 14px; margin: 0 0 16px 0;">Hi ${opts.userName},</p>
+          <p style="color: #1e293b; font-size: 14px; margin: 0 0 16px 0;">Click the button below to reset your password. This link expires in 1 hour.</p>
+          <div style="text-align: center; margin: 24px 0;">
+            <a href="${opts.resetLink}" style="display: inline-block; background: #1265e8; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 14px;">Reset Password</a>
+          </div>
+          <p style="color: #94a3b8; font-size: 12px; margin: 0;">If you didn't request this, you can safely ignore this email.</p>
+        </div>
+        <p style="color: #94a3b8; font-size: 12px; text-align: center;">Jioplix — AI-Powered Clinic Operating System</p>
+      </div>
+    `
+    return this.sendEmail({ to: opts.to, subject, html })
+  }
+
+  async sendTicketResponseEmail(opts: {
+    to: string
+    userName: string
+    ticketSubject: string
+    responderName: string
+    message: string
+    ticketUrl: string
+  }): Promise<boolean> {
+    const subject = `Jioplix Support — Reply on "${opts.ticketSubject}"`
+    const html = `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 560px; margin: 0 auto; padding: 32px; background: #f7fbff; border-radius: 12px;">
+        <div style="text-align: center; margin-bottom: 24px;">
+          <h1 style="color: #1265e8; font-size: 24px; margin: 0;">Support Reply</h1>
+        </div>
+        <div style="background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 24px; margin-bottom: 16px;">
+          <p style="color: #1e293b; font-size: 14px; margin: 0 0 12px 0;">Hi ${opts.userName},</p>
+          <p style="color: #1e293b; font-size: 14px; margin: 0 0 12px 0;"><strong>${opts.responderName}</strong> replied to your ticket <em>"${opts.ticketSubject}"</em>:</p>
+          <div style="background: #f1f5f9; border-radius: 8px; padding: 16px; margin: 16px 0;">
+            <p style="color: #334155; font-size: 14px; margin: 0; white-space: pre-wrap;">${opts.message}</p>
+          </div>
+          <div style="text-align: center; margin: 24px 0;">
+            <a href="${opts.ticketUrl}" style="display: inline-block; background: #1265e8; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 14px;">View Ticket</a>
+          </div>
+        </div>
+        <p style="color: #94a3b8; font-size: 12px; text-align: center;">Jioplix — AI-Powered Clinic Operating System</p>
       </div>
     `
     return this.sendEmail({ to: opts.to, subject, html })

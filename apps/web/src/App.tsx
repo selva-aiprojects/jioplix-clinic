@@ -28,6 +28,11 @@ import Campaigns from './pages/Campaigns'
 import OnlineBooking from './pages/OnlineBooking'
 import ABDMIntegration from './pages/ABDMIntegration'
 import Onboarding from './pages/Onboarding'
+import ForgotPassword from './pages/ForgotPassword'
+import ResetPassword from './pages/ResetPassword'
+import SupportPage from './pages/SupportPage'
+import BillingPage from './pages/BillingPage'
+import PlatformTickets from './pages/PlatformTickets'
 
 function Splash() {
   return (
@@ -60,8 +65,11 @@ function AppRoutes() {
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/admin" element={<PlatformAdmin />} />
       <Route path="/admin/settings" element={<AdminSettings />} />
+      <Route path="/admin/tickets" element={<PlatformTickets />} />
       <Route path="/suspended" element={<Suspended />} />
       <Route path="/onboarding" element={<Onboarding />} />
       <Route element={<ProtectedRoute />}>
@@ -84,6 +92,8 @@ function AppRoutes() {
         <Route path="/campaigns" element={<Campaigns />} />
         <Route path="/online-booking" element={<OnlineBooking />} />
         <Route path="/abdm" element={<ABDMIntegration />} />
+        <Route path="/support" element={<SupportPage />} />
+        <Route path="/plans" element={<BillingPage />} />
       </Route>
       <Route path="/" element={<Landing />} />
       <Route path="*" element={<Navigate to="/" replace />} />

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import {
   AlertCircle, Baby, Eye, EyeOff, Fingerprint, HeartHandshake,
   Loader2, Lock, Phone, ScanFace, ShieldCheck, Stethoscope, Users, Pill,
@@ -412,6 +412,12 @@ export default function Login() {
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
+              </div>
+
+              <div className="flex justify-end -mt-2">
+                <Link to="/forgot-password" className="text-[11px] font-semibold text-primary-600 hover:text-primary-700 transition-colors">
+                  Forgot password?
+                </Link>
               </div>
 
               {error && (

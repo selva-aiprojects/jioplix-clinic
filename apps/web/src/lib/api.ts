@@ -994,6 +994,40 @@ export async function platformDashboard(): Promise<PlatformDashboard> {
 
 /* ============================ Platform Settings ============================ */
 
+export async function platformApi<T>(path: string, opts: RequestOptions = {}): Promise<T> {
+  const session = currentSession
+  const platformAdmin = (() => {
+    try {
+      const raw = localStorage.getItem('jioplix.platform_admin')
+      return raw ? JSON.parse(raw) : null
+    } catch { return null }
+  })()
+
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(opts.headers as Record<string, string> ?? {}),
+  }
+
+  if (session?.accessToken) {
+    headers.authorization = `Bearer ${session.accessToken}`
+  } else if (platformAdmin) {
+    // Platform admin might not be in shared session yet
+    headers.authorization = `Bearer `
+  }
+
+  const res = await fetch(`${BASE_URL}${path}`, {
+    method: opts.method ?? 'GET',
+    headers,
+    body: opts.body ? JSON.stringify(opts.body) : undefined,
+  })
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}))
+    throw new ApiError(body?.error?.code ?? 'UNKNOWN', res.status)
+  }
+  return res.json().then(r => r.data ?? r)
+}
+
 export interface PlatformSettings {
   payment_enabled: boolean
   registration_enabled: boolean

@@ -41,6 +41,9 @@ import { SubscriptionModule } from './subscription/subscription.module.js'
 import { PlatformAdminModule } from './platform-admin/platform-admin.module.js'
 import { MailerModule } from './mailer/mailer.module.js'
 import { PaymentModule } from './payment/payment.module.js'
+import { PasswordResetModule } from './password-reset/password-reset.module.js'
+import { SupportTicketModule } from './support-ticket/support-ticket.module.js'
+import { UpgradeModule } from './upgrade/upgrade.module.js'
 
 @Module({
   controllers: [
@@ -89,6 +92,9 @@ import { PaymentModule } from './payment/payment.module.js'
     PlatformAdminModule,
     MailerModule,
     PaymentModule,
+    PasswordResetModule,
+    SupportTicketModule,
+    UpgradeModule,
   ],
 })
 export class AppModule {}
