@@ -296,10 +296,10 @@ export const prescriptionItems = pgTable(
     drugName: text('drug_name').notNull(),
     genericName: text('generic_name'),
     strength: text('strength'),
-    form: text('form', { enum: ['tablet', 'capsule', 'syrup', 'injection', 'cream', 'drops', 'other'] }),
+    form: text('form'),
     dosage: text('dosage').notNull(),
     frequency: text('frequency').notNull(),
-    route: text('route', { enum: ['oral', 'topical', 'injection', 'inhaled', 'other'] }),
+    route: text('route'),
     durationDays: integer('duration_days'),
     quantity: integer('quantity'),
     instructions: text('instructions'),
@@ -556,6 +556,36 @@ export const notifications = pgTable(
   (t) => [
     index('notifications_recipient_idx').on(t.recipientUserId, t.isRead),
     index('notifications_created_idx').on(t.createdAt),
+  ],
+)
+
+export const teleconsultationSessions = pgTable(
+  'teleconsultation_sessions',
+  {
+    id: uuid('id').primaryKey(),
+    encounterId: uuid('encounter_id').references(() => encounters.id, { onDelete: 'set null' }),
+    patientId: uuid('patient_id').notNull().references(() => patients.id),
+    doctorId: uuid('doctor_id').notNull().references(() => users.id),
+    status: text('status', {
+      enum: ['scheduled', 'waiting', 'in_progress', 'completed', 'cancelled'],
+    })
+      .notNull()
+      .default('scheduled'),
+    roomUrl: text('room_url'),
+    scheduledAt: timestamp('scheduled_at', { withTimezone: true }).notNull(),
+    startedAt: timestamp('started_at', { withTimezone: true }),
+    endedAt: timestamp('ended_at', { withTimezone: true }),
+    durationMinutes: integer('duration_minutes'),
+    recordingConsent: boolean('recording_consent').notNull().default(false),
+    notes: text('notes'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('tc_sessions_patient_idx').on(t.patientId),
+    index('tc_sessions_doctor_idx').on(t.doctorId),
+    index('tc_sessions_status_idx').on(t.status),
+    index('tc_sessions_scheduled_idx').on(t.scheduledAt),
   ],
 )
 

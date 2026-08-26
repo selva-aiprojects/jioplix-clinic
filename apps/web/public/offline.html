@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Jioplix — Offline</title>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body {
+        font-family: system-ui, -apple-system, sans-serif;
+        display: flex; align-items: center; justify-content: center;
+        min-height: 100vh; background: #f8fafc; color: #334155;
+      }
+      .box {
+        text-align: center; padding: 2rem; max-width: 400px;
+      }
+      .box img { height: 48px; margin-bottom: 1rem; }
+      h1 { font-size: 1.25rem; font-weight: 600; margin-bottom: 0.5rem; }
+      p { font-size: 0.875rem; color: #64748b; line-height: 1.5; }
+      button {
+        margin-top: 1.5rem; padding: 0.5rem 1.25rem;
+        background: #1265e8; color: #fff; border: none; border-radius: 0.5rem;
+        font-size: 0.875rem; font-weight: 500; cursor: pointer;
+      }
+      button:hover { background: #0f54c6; }
+    </style>
+  </head>
+  <body>
+    <div class="box">
+      <img src="/favicon.png" alt="Jioplix" />
+      <h1>You're offline</h1>
+      <p>Please check your internet connection and try again.</p>
+      <button onclick="location.reload()">Retry</button>
+    </div>
+  </body>
+</html>

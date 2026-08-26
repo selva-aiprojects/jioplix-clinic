@@ -1,0 +1,63 @@
+{
+  "common": {
+    "appName": "जियोप्लिक्स",
+    "save": "सेभ गर्नुहोस्",
+    "cancel": "रद्द गर्नुहोस्",
+    "delete": "मेटाउनुहोस्",
+    "edit": "सम्पादन गर्नुहोस्",
+    "search": "खोज्नुहोस्",
+    "loading": "लोड हुँदैछ…",
+    "noData": "कुनै तथ्य उपलब्ध छैन",
+    "error": "केही गलत भयो"
+  },
+  "nav": {
+    "dashboard": "ड्यासबोर्ड",
+    "patients": "बिरामी",
+    "appointments": "अपोइन्टमेन्ट",
+    "consultation": "परामर्श",
+    "billing": "बिलिङ",
+    "pharmacy": "फार्मेसी",
+    "laboratory": "प्रयोगशाला",
+    "inventory": "इन्भेन्टरी",
+    "procedures": "प्रक्रिया",
+    "analytics": "विश्लेषण",
+    "engagement": "संलग्नता",
+    "campaigns": "अभियान"
+  },
+  "dashboard": {
+    "greeting": "शुभ प्रभात",
+    "liveQueue": "लाइभ कतार",
+    "quickActions": "द्रुत कार्य",
+    "aiInsights": "AI अन्तर्दृष्टि",
+    "todayCollections": "आजको सङ्कलन",
+    "patientFlow": "बिरामी प्रवाह"
+  },
+  "consultation": {
+    "soap": "SOAP नोट",
+    "vitals": "भाइटल्स",
+    "diagnosis": "रोग निदान",
+    "prescription": "नुस्खा",
+    "aiDraft": "AI ड्राफ्ट",
+    "signAndClose": "सही गर्नुहोस् र बन्द गर्नुहोस्",
+    "previousConsultations": "अघिल्लो परामर्श"
+  },
+  "billing": {
+    "invoices": "चलानी",
+    "payments": "भुक्तानी",
+    "collectPayment": "भुक्तानी सङ्कलन",
+    "newInvoice": "नयाँ चलानी",
+    "outstanding": "बाँकी"
+  },
+  "patients": {
+    "register": "बिरामी दर्ता",
+    "search": "बिरामी खोज्नुहोस्",
+    "profile": "बिरामी प्रोफाइल",
+    "timeline": "टाइमलाइन",
+    "vitals": "भाइटल्स"
+  },
+  "settings": {
+    "language": "भाषा",
+    "profile": "प्रोफाइल",
+    "logout": "लग आउट"
+  }
+}

@@ -1,0 +1,63 @@
+{
+  "common": {
+    "appName": "Jioplix",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "search": "Search",
+    "loading": "Loading…",
+    "noData": "No data available",
+    "error": "Something went wrong"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "patients": "Patients",
+    "appointments": "Appointments",
+    "consultation": "Consultation",
+    "billing": "Billing",
+    "pharmacy": "Pharmacy",
+    "laboratory": "Laboratory",
+    "inventory": "Inventory",
+    "procedures": "Procedures",
+    "analytics": "Analytics",
+    "engagement": "Engagement",
+    "campaigns": "Campaigns"
+  },
+  "dashboard": {
+    "greeting": "Good morning",
+    "liveQueue": "Live Queue",
+    "quickActions": "Quick Actions",
+    "aiInsights": "AI Insights",
+    "todayCollections": "Today's Collections",
+    "patientFlow": "Patient Flow"
+  },
+  "consultation": {
+    "soap": "SOAP Notes",
+    "vitals": "Vitals",
+    "diagnosis": "Diagnosis",
+    "prescription": "Prescription",
+    "aiDraft": "AI Draft",
+    "signAndClose": "Sign & Close",
+    "previousConsultations": "Previous Consultations"
+  },
+  "billing": {
+    "invoices": "Invoices",
+    "payments": "Payments",
+    "collectPayment": "Collect Payment",
+    "newInvoice": "New Invoice",
+    "outstanding": "Outstanding"
+  },
+  "patients": {
+    "register": "Register Patient",
+    "search": "Search Patients",
+    "profile": "Patient Profile",
+    "timeline": "Timeline",
+    "vitals": "Vitals"
+  },
+  "settings": {
+    "language": "Language",
+    "profile": "Profile",
+    "logout": "Sign out"
+  }
+}

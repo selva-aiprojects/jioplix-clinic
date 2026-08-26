@@ -1,0 +1,13 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Jioplix Clinic OS</string>
+    <string name="title_activity_main">Jioplix Clinic OS</string>
+    <string name="package_name">com.jioplix.clinic</string>
+    <string name="custom_url_scheme">com.jioplix.clinic</string>
+</resources>
+
+
+
+
+
+

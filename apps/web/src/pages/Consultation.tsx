@@ -5,7 +5,7 @@ import {
   Stethoscope, ClipboardList, Pill, FileText,
   ArrowRight, CheckCircle2, Sparkles, AlertTriangle,
   Plus, Activity, Lock, Save, Ban, CalendarClock, Printer,
-  Bookmark, Languages, ScanLine,
+  Bookmark, Languages, ScanLine, Download,
 } from 'lucide-react'
 import { PageHeader, Button } from '../components/ui'
 import Autocomplete from '../components/Autocomplete'
@@ -14,13 +14,15 @@ import {
   getEncounter, getPatient, updateEncounter, addVitals, addDiagnosis,
   lockEncounter, createPrescription, listPrescriptionsByEncounter,
   addPrescriptionItem, updatePrescriptionStatus, listPatientEncounters,
+  createAiJob, getAiJob,
 } from '../lib/api'
-import type { Encounter, Patient, Prescription, PatientEncounterSummary } from '../lib/api'
+import type { Encounter, Patient, Prescription, PatientEncounterSummary, AiJob } from '../lib/api'
 import { searchDrugs, COMMON_FREQUENCIES } from '../lib/drugMaster'
 import { searchIcd10 } from '../lib/icd10'
 import type { RxTemplateItem } from '../lib/rxTemplates'
 import { recordVitalsSnapshot } from '../lib/vitalsHistory'
 import { getPrintLanguage, PRINT_LANGUAGES } from '../lib/printI18n'
+import { exportPrescriptionPdf } from '../lib/pdfExport'
 import { pushNotification } from '../lib/notifications'
 
 const genderLabel: Record<string, string> = { M: 'Male', F: 'Female', O: 'Other' }
@@ -219,7 +221,7 @@ export default function Consultation() {
         drugName: item.drugName.trim(),
         genericName: item.genericName?.trim() || undefined,
         strength: item.strength?.trim() || undefined,
-        form: item.form?.trim() || undefined,
+        form: item.form?.trim().toLowerCase() || undefined,
         dosage: item.dosage.trim(),
         frequency: item.frequency.trim(),
         durationDays: item.durationDays != null ? Number(item.durationDays) : undefined,
@@ -273,28 +275,70 @@ export default function Consultation() {
   function prepareAiDraft() {
     if (!currentRx) startPrescription()
     setAiThinking(true)
-    setTimeout(() => {
-      const context = `${chiefComplaint} ${hpi} ${recordText}`.toLowerCase()
-      if (!chiefComplaint.trim()) {
-        setChiefComplaint(recordText.trim().slice(0, 120) || 'Presenting complaint (auto-drafted, review needed)')
-      }
-      if (!hpi.trim()) {
-        setHpi(recordText.trim()
-          ? `History from uploaded record:\n${recordText.trim().slice(0, 400)}`
-          : 'Onset and progression to be confirmed with patient.')
-      }
-      if (!examination.trim()) setExamination('General examination unremarkable. Systemic exam pending.')
-      if (!clinicalNotes.trim()) setClinicalNotes('Assessment and plan to be finalised by the clinician.')
-      setDirty(true)
-      const matched = KEYWORD_RX.filter(k => k.kw.some(w => context.includes(w))).map(k => k.item)
-      setAiSuggestions(matched)
-      setAiThinking(false)
-      setAiDraftReady(true)
-      setActiveTab('rx')
-      setNotice(matched.length
-        ? `AI drafted notes and suggested ${matched.length} medicine${matched.length > 1 ? 's' : ''}. Review everything before issuing.`
-        : 'AI drafted the clinical note. Review and add medicines as needed.')
-    }, 900)
+
+    const payload = {
+      encounterId: encounter!.id,
+      context: {
+        chiefComplaint,
+        history: hpi,
+        extractedText: recordText || undefined,
+        patientAge: patient ? ageOf(patient.dateOfBirth) ?? undefined : undefined,
+        patientGender: patient?.gender || undefined,
+      },
+      jobType: 'consultation',
+    }
+
+    createAiJob(payload)
+      .then(async (job: AiJob) => {
+        let result: AiJob['result'] = null
+        for (let i = 0; i < 30; i++) {
+          await new Promise(r => setTimeout(r, 500))
+          const poll = await getAiJob(job.id)
+          if (poll.status === 'completed' || poll.status === 'failed') {
+            result = poll.result
+            break
+          }
+        }
+
+        if (result) {
+          if (result.soap.chiefComplaint && !chiefComplaint.trim()) setChiefComplaint(result.soap.chiefComplaint)
+          if (result.soap.historyPresentIllness && !hpi.trim()) setHpi(result.soap.historyPresentIllness)
+          if (result.soap.examinationFindings && !examination.trim()) setExamination(result.soap.examinationFindings)
+          if (result.soap.clinicalNotes && !clinicalNotes.trim()) setClinicalNotes(result.soap.clinicalNotes)
+          setDirty(true)
+          setAiSuggestions(result.suggestions || [])
+          setNotice(result.suggestions?.length
+            ? `AI drafted notes and suggested ${result.suggestions.length} medicine${result.suggestions.length > 1 ? 's' : ''}. Review everything before issuing.`
+            : 'AI drafted the clinical note. Review and add medicines as needed.')
+        } else {
+          fallbackKeywordDraft()
+        }
+      })
+      .catch(() => {
+        fallbackKeywordDraft()
+      })
+      .finally(() => {
+        setAiThinking(false)
+        setAiDraftReady(true)
+        setActiveTab('rx')
+      })
+  }
+
+  function fallbackKeywordDraft() {
+    const context = `${chiefComplaint} ${hpi} ${recordText}`.toLowerCase()
+    if (!chiefComplaint.trim()) {
+      setChiefComplaint(recordText.trim().slice(0, 120) || 'Presenting complaint (auto-drafted, review needed)')
+    }
+    if (!hpi.trim()) {
+      setHpi(recordText.trim()
+        ? `History from uploaded record:\n${recordText.trim().slice(0, 400)}`
+        : 'Onset and progression to be confirmed with patient.')
+    }
+    if (!examination.trim()) setExamination('General examination unremarkable. Systemic exam pending.')
+    if (!clinicalNotes.trim()) setClinicalNotes('Assessment and plan to be finalised by the clinician.')
+    setDirty(true)
+    const matched = KEYWORD_RX.filter(k => k.kw.some(w => context.includes(w))).map(k => k.item)
+    setAiSuggestions(matched)
   }
 
   function printPrescription() {
@@ -637,6 +681,9 @@ export default function Consultation() {
                         </div>
                         <button onClick={printPrescription} className="inline-flex items-center gap-1 rounded-lg border border-surface-200 px-2.5 py-1.5 text-[11px] font-semibold text-surface-600 hover:bg-surface-50">
                           <Printer className="h-3.5 w-3.5" /> Print
+                        </button>
+                        <button onClick={() => exportPrescriptionPdf(currentRx, currentRx.items, printLang)} className="inline-flex items-center gap-1 rounded-lg border border-surface-200 px-2.5 py-1.5 text-[11px] font-semibold text-surface-600 hover:bg-surface-50">
+                          <Download className="h-3.5 w-3.5" /> PDF
                         </button>
                       </div>
                     ) : null}

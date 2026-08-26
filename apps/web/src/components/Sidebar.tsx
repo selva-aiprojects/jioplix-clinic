@@ -17,6 +17,10 @@ import {
   Bandage,
   Puzzle,
   UserCog,
+  Send,
+  Link2,
+  Video,
+  Shield,
 } from 'lucide-react'
 import { useAuth } from '../auth/useAuth'
 import BrandLogo from './BrandLogo'
@@ -51,7 +55,10 @@ const navGroups: { title: string; items: NavItem[] }[] = [
       { to: '/patients', icon: Users, label: 'Patients', color: 'text-accent-600' },
       { to: '/appointments', icon: Calendar, label: 'Appointments', color: 'text-info-600' },
       { to: '/consultation', icon: Stethoscope, label: 'Consultation', color: 'text-success-600' },
+      { to: '/teleconsultation', icon: Video, label: 'Teleconsultation', color: 'text-primary-500' },
       { to: '/billing', icon: CreditCard, label: 'Billing', color: 'text-warning-600' },
+      { to: '/campaigns', icon: Send, label: 'Campaigns', color: 'text-accent-500' },
+      { to: '/online-booking', icon: Link2, label: 'Online Booking', color: 'text-info-500' },
       { to: '/engagement', icon: MessageSquare, label: 'Engagement', color: 'text-primary-500' },
     ],
   },
@@ -62,6 +69,7 @@ const navGroups: { title: string; items: NavItem[] }[] = [
       { to: '/laboratory', icon: FlaskConical, label: 'Laboratory', color: 'text-danger-500', addon: true, permission: 'lab_orders:read' },
       { to: '/inventory', icon: Warehouse, label: 'Inventory', color: 'text-accent-600', addon: true, permission: 'inventory:read' },
       { to: '/procedures', icon: Bandage, label: 'Procedures', color: 'text-success-600', addon: true, permission: 'procedures:read' },
+      { to: '/abdm', icon: Shield, label: 'ABDM / ABHA', color: 'text-info-600' },
       { to: '/addons', icon: Puzzle, label: 'Plans & Add-ons', color: 'text-primary-600' },
       { to: '/users', icon: UserCog, label: 'User Management', color: 'text-primary-600' },
     ],

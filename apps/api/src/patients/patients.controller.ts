@@ -31,7 +31,6 @@ export class PatientsController {
   async vitals(@CurrentTenant() tenant: TenantContext, @Param('id') id: string) {
     return { data: await this.patients.vitalsHistory(tenant.schemaName, id) }
   }
-}
 
   @Post()
   @RequirePermissions('patients:create')

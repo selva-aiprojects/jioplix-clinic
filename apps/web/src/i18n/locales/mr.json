@@ -1,0 +1,63 @@
+{
+  "common": {
+    "appName": "जियोप्लिक्स",
+    "save": "जतन करा",
+    "cancel": "रद्द करा",
+    "delete": "हटवा",
+    "edit": "संपादित करा",
+    "search": "शोधा",
+    "loading": "लोड होत आहे…",
+    "noData": "कोणताही डेटा उपलब्ध नाही",
+    "error": "काहीतरी चूक झाली"
+  },
+  "nav": {
+    "dashboard": "डॅशबोर्ड",
+    "patients": "रुग्ण",
+    "appointments": "भेटी",
+    "consultation": "सल्ला",
+    "billing": "बिलिंग",
+    "pharmacy": "फार्मसी",
+    "laboratory": "प्रयोगशाळा",
+    "inventory": "इन्व्हेंटरी",
+    "procedures": "प्रक्रिया",
+    "analytics": "विश्लेषण",
+    "engagement": "संलग्नता",
+    "campaigns": "मोहीम"
+  },
+  "dashboard": {
+    "greeting": "सुप्रभात",
+    "liveQueue": "लाइव्ह क्व्यू",
+    "quickActions": "जलद क्रिया",
+    "aiInsights": "AI अंतर्दृष्टी",
+    "todayCollections": "आजचे वसुली",
+    "patientFlow": "रुग्ण प्रवाह"
+  },
+  "consultation": {
+    "soap": "SOAP नोट्स",
+    "vitals": "महत्त्वाचे संकेत",
+    "diagnosis": "निदान",
+    "prescription": "प्रिस्क्रिप्शन",
+    "aiDraft": "AI ड्राफ्ट",
+    "signAndClose": "स्वाक्षरी करा आणि बंद करा",
+    "previousConsultations": "मागील सल्ले"
+  },
+  "billing": {
+    "invoices": "बिले",
+    "payments": "पेमेंट",
+    "collectPayment": "पेमेंट वसुला",
+    "newInvoice": "नवीन बिल",
+    "outstanding": "बाकी"
+  },
+  "patients": {
+    "register": "रुग्ण नोंदवा",
+    "search": "रुग्ण शोधा",
+    "profile": "रुग्ण प्रोफाइल",
+    "timeline": "टाइमलाइन",
+    "vitals": "महत्त्वाचे संकेत"
+  },
+  "settings": {
+    "language": "भाषा",
+    "profile": "प्रोफाइल",
+    "logout": "साइन आउट"
+  }
+}

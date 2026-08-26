@@ -1,0 +1,63 @@
+{
+  "common": {
+    "appName": "જિયોપ્લિક્સ",
+    "save": "સાચવો",
+    "cancel": "રદ કરો",
+    "delete": "કાઢી નાખો",
+    "edit": "સંપાદિત કરો",
+    "search": "શોધો",
+    "loading": "લોડ થઈ રહ્યું છે…",
+    "noData": "કોઈ ડેટા ઉપલબ્ધ નથી",
+    "error": "કંઈક ખોટું થયું"
+  },
+  "nav": {
+    "dashboard": "ડેશબોર્ડ",
+    "patients": "દર્દીઓ",
+    "appointments": "અપોઇન્ટમેન્ટ્સ",
+    "consultation": "સલાહ",
+    "billing": "બિલિંગ",
+    "pharmacy": "ફાર્મસી",
+    "laboratory": "પ્રયોગશાળા",
+    "inventory": "ઇન્વેન્ટરી",
+    "procedures": "પ્રક્રિયાઓ",
+    "analytics": "વિશ્લેષણ",
+    "engagement": "એન્ગેજમેન્ટ",
+    "campaigns": "અભિયાનો"
+  },
+  "dashboard": {
+    "greeting": "સુપ્રભાત",
+    "liveQueue": "લાઇવ કતાર",
+    "quickActions": "ઝડપી ક્રિયાઓ",
+    "aiInsights": "AI અંતર્દૃષ્ટિ",
+    "todayCollections": "આજની વસૂલી",
+    "patientFlow": "દર્દી પ્રવાહ"
+  },
+  "consultation": {
+    "soap": "SOAP નોંધો",
+    "vitals": "મહત્વપૂર્ણ સંકેતો",
+    "diagnosis": "નિદાન",
+    "prescription": "પ્રિસ્ક્રિપ્શન",
+    "aiDraft": "AI ડ્રાફ્ટ",
+    "signAndClose": "સહી કરો અને બંધ કરો",
+    "previousConsultations": "અગાઉની સલાહો"
+  },
+  "billing": {
+    "invoices": "બિલો",
+    "payments": "ચુકવણીઓ",
+    "collectPayment": "ચુકવણી એકત્ર કરો",
+    "newInvoice": "નવું બિલ",
+    "outstanding": "બાકી"
+  },
+  "patients": {
+    "register": "દર્દી નોંધણી",
+    "search": "દર્દીઓ શોધો",
+    "profile": "દર્દી પ્રોફાઇલ",
+    "timeline": "ટાઇમલાઇન",
+    "vitals": "મહત્વપૂર્ણ સંકેતો"
+  },
+  "settings": {
+    "language": "ભાષા",
+    "profile": "પ્રોફાઇલ",
+    "logout": "સાઇન આઉટ"
+  }
+}

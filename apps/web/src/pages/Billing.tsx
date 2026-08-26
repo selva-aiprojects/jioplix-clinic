@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
-import {
-  CreditCard, Plus, Search,
+import { CreditCard, Plus, Search,
   CheckCircle2, Clock, AlertCircle, XCircle,
-  Smartphone, Banknote, Wallet, ArrowUpRight, X, IndianRupee,
+  Smartphone, Banknote, Wallet, ArrowUpRight, X, IndianRupee, Download,
 } from 'lucide-react'
 import { PageHeader, Button } from '../components/ui'
-import { listInvoices, listPatients, createInvoice, addPayment } from '../lib/api'
+import { listInvoices, listPatients, createInvoice, addPayment, getInvoice } from '../lib/api'
 import type { Invoice as InvoiceRow, Patient } from '../lib/api'
+import { exportInvoicePdf } from '../lib/pdfExport'
 
 function formatPaise(paise: number): string {
   return `₹${(paise / 100).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`
@@ -43,6 +43,7 @@ export default function Billing() {
   const [query, setQuery] = useState('')
   const [busy, setBusy] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
+  const [downloadingInvoiceId, setDownloadingInvoiceId] = useState<string | null>(null)
 
   const [payTarget, setPayTarget] = useState<InvoiceRow | null>(null)
   const [payAmount, setPayAmount] = useState('')
@@ -147,6 +148,18 @@ export default function Billing() {
       setActionError(e instanceof Error ? e.message : 'UNKNOWN')
     } finally {
       setBusy(false)
+    }
+  }
+
+  async function handleDownloadInvoice(invoiceId: string) {
+    setDownloadingInvoiceId(invoiceId)
+    try {
+      const fullInvoice = await getInvoice(invoiceId)
+      exportInvoicePdf(fullInvoice)
+    } catch {
+      setActionError('Failed to load invoice for PDF export')
+    } finally {
+      setDownloadingInvoiceId(null)
     }
   }
 
@@ -266,16 +279,24 @@ export default function Billing() {
                         </span>
                       </td>
                       <td className="px-5 py-3 text-right">
-                        {inv.balancePaise > 0 && inv.status !== 'void' ? (
+                        <div className="inline-flex items-center gap-1.5">
                           <button
-                            onClick={() => { setPayTarget(inv); setPayAmount((inv.balancePaise / 100).toString()); setPayMode('cash'); setActionError(null) }}
-                            className="px-3 py-1.5 rounded-lg bg-success-50 text-success-600 text-[12px] font-medium hover:bg-success-100 transition-colors"
+                            onClick={() => handleDownloadInvoice(inv.id)}
+                            disabled={downloadingInvoiceId === inv.id}
+                            className="px-2 py-1.5 rounded-lg bg-info-50 text-info-600 text-[12px] font-medium hover:bg-info-100 transition-colors disabled:opacity-50"
+                            title="Download PDF"
                           >
-                            Collect
+                            <Download className="w-3.5 h-3.5" />
                           </button>
-                        ) : (
-                          <span className="text-[12px] text-surface-300">—</span>
-                        )}
+                          {inv.balancePaise > 0 && inv.status !== 'void' ? (
+                            <button
+                              onClick={() => { setPayTarget(inv); setPayAmount((inv.balancePaise / 100).toString()); setPayMode('cash'); setActionError(null) }}
+                              className="px-3 py-1.5 rounded-lg bg-success-50 text-success-600 text-[12px] font-medium hover:bg-success-100 transition-colors"
+                            >
+                              Collect
+                            </button>
+                          ) : null}
+                        </div>
                       </td>
                     </tr>
                   )

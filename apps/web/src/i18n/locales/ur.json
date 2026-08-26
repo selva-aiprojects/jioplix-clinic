@@ -1,0 +1,63 @@
+{
+  "common": {
+    "appName": "جیوپلکس",
+    "save": "محفوظ کریں",
+    "cancel": "منسوخ کریں",
+    "delete": "حذف کریں",
+    "edit": "ترمیم کریں",
+    "search": "تلاش کریں",
+    "loading": "لوڈ ہو رہا ہے…",
+    "noData": "کوئی ڈیٹا دستیاب نہیں",
+    "error": "کچھ غلط ہو گیا"
+  },
+  "nav": {
+    "dashboard": "ڈیش بورڈ",
+    "patients": "مریض",
+    "appointments": "ملاقاتیں",
+    "consultation": "مشاورت",
+    "billing": "بلنگ",
+    "pharmacy": "فارمیسی",
+    "laboratory": "لیبارٹری",
+    "inventory": "انوینٹری",
+    "procedures": "طریقے",
+    "analytics": "تجزیات",
+    "engagement": "مشغولیت",
+    "campaigns": "مہم"
+  },
+  "dashboard": {
+    "greeting": "صبح بخیر",
+    "liveQueue": "لائیو قطار",
+    "quickActions": "فوری اقدامات",
+    "aiInsights": "AI بصیرت",
+    "todayCollections": "آج کی وصولی",
+    "patientFlow": "مریض کا بہاؤ"
+  },
+  "consultation": {
+    "soap": "SOAP نوٹس",
+    "vitals": "اعلائم حیاتی",
+    "diagnosis": "تشخیص",
+    "prescription": "نسخہ",
+    "aiDraft": "AI Draft",
+    "signAndClose": "دستخط کریں اور بند کریں",
+    "previousConsultations": "پچھلی مشاورتیں"
+  },
+  "billing": {
+    "invoices": "انوائسز",
+    "payments": "ادائیگیاں",
+    "collectPayment": "ادائیگی جمع کریں",
+    "newInvoice": "نئی انوائس",
+    "outstanding": "باقی"
+  },
+  "patients": {
+    "register": "مریض رجسٹر",
+    "search": "مریض تلاش کریں",
+    "profile": "مریض پروفائل",
+    "timeline": "ٹائم لائن",
+    "vitals": "اعلائم حیاتی"
+  },
+  "settings": {
+    "language": "زبان",
+    "profile": "پروفائل",
+    "logout": "لاگ آؤٹ"
+  }
+}

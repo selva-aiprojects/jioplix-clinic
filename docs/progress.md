@@ -13,9 +13,9 @@ Update this file after every work session.
 | PRD Version | 4.0 (Target: Q4 2026) |
 | Release Scope | Release 1 (Clinic Core) + Release 1.1 (Revenue Add-ons) |
 | Stack | Monorepo (npm workspaces): `apps/web` React 19 + TS + Vite 8 + Tailwind 4 · `apps/api` NestJS 11 · `packages/db` migrator/seeder CLI · `packages/contracts` shared zod enums/schemas/permissions |
-| Data | PostgreSQL 17 project-local (`.pgdata`, port **5434**, `scripts/dev-db.ps1 start`) · Drizzle ORM in api · schema-per-tenant |
+| Data | PostgreSQL 17, Aiven cloud · Drizzle ORM in api · schema-per-tenant |
 | Auth | JWT access 15m + rotating refresh 7d, scrypt passwords, RBAC guards; demo password `demo1234` |
-| Verification | `npm run smoke` — 29 checks, all passing · lint (oxlint) + tsc per workspace |
+| Verification | `npm run smoke` — 49 checks, all passing · lint (oxlint) + tsc per workspace |
 | Demo tenants | sunrise (starter/Dental) · nova (professional/Pediatric) · apex (clinic/Dermatology) · medicore (enterprise/General) |
 
 ---
@@ -28,7 +28,7 @@ Update this file after every work session.
 - **Auth**: `{clinic(slug), phone, password}` login → bearer flow with single-flight refresh on the web client; global JwtAuthGuard (@Public opt-out) + wildcard-aware PermissionsGuard.
 - **Error contract**: stable machine codes `{error:{code}}` via global ErrorFilter (TRD TR-400); web maps codes to friendly copy.
 - **Design system**: single theme in `src/index.css` via Tailwind 4 `@theme` tokens carrying the Jioplix brand palette (v1.0).
-- Web pages beyond login/dashboard-greeting still render static demo data; live API wiring is tracked in the backlog.
+- Dashboard, Appointments, Consultation, and Patient Profile pages now wire to live API. Remaining pages (Billing, Analytics, Engagement, add-ons) use static demo data; live API wiring tracked in backlog.
 
 ---
 
@@ -65,18 +65,20 @@ Update this file after every work session.
 - [x] Theme tokens + healthcare utilities (`src/index.css`)
 - [x] App shell: `Layout.tsx`, collapsible `Sidebar.tsx`, sticky `TopBar.tsx` (search, AI Copilot button, notifications, user menu)
 - [x] Routing in `App.tsx`
+- [x] Shared UI primitives: `PageHeader`, `StatCard`, `Button`, `Badge` (`components/ui.tsx`)
+- [x] Shared components: `EmptyState`, `SkeletonCard`/`SkeletonRows`/`SkeletonText`, `Autocomplete`, `NotificationPanel`
 
-### Release 1 — Clinic Core (all pages built)
+### Release 1 — Clinic Core (all pages built + live API wired)
 | Epic | Route | File | Notes |
 |---|---|---|---|
-| 1. Command Center | `/` | `src/pages/Dashboard.tsx` | Today's metrics, live queue, quick actions, AI insights, activity feed |
-| 2. Patients | `/patients` | `src/pages/Patients.tsx` | Search/filter list |
-| 2. Patient Record | `/patients/:id` | `src/pages/PatientProfile.tsx` | Timeline, history, documents |
-| 3. Appointments | `/appointments` | `src/pages/Appointments.tsx` | Calendar + queue |
-| 4. Clinical EMR | `/consultation` | `src/pages/Consultation.tsx` | Workflow stepper, vitals, AI pre-consult summary, diagnosis (ICD-10), AI Scribe button |
-| 7. Billing | `/billing` | `src/pages/Billing.tsx` | Invoices, payments |
-| 16. Analytics | `/analytics` | `src/pages/Analytics.tsx` | Revenue/patient charts (recharts) |
-| 6. Engagement | `/engagement` | `src/pages/Engagement.tsx` | WhatsApp journey notifications |
+| 1. Command Center | `/` | `Dashboard.tsx` | Live metrics from API, live queue, quick actions, computed AI insights, financial summary (billed/collected/pending), patient flow bar chart (recharts), skeleton loading |
+| 2. Patients | `/patients` | `Patients.tsx` | Search/filter list from API |
+| 2. Patient Record | `/patients/:id` | `PatientProfile.tsx` | Contact info, identifiers (ABHA, blood group), summary stats, vitals trend charts (recharts LineChart: weight + BP), encounter timeline with diagnosis badges, billing tab |
+| 3. Appointments | `/appointments` | `Appointments.tsx` | List view + Day/Week calendar views, doctor filter pills, New Appointment modal (patient/doctor select, duration, source), Check In / Start Consultation / Complete actions |
+| 4. Clinical EMR | `/encounters/:id` | `Consultation.tsx` | Tabbed SOAP (soap/vitals/diagnosis/rx), progress stepper, AI Pre-Consult Summary, AI Prescription Assistant ("Draft with AI"), Drug Master autocomplete (28 drugs), ICD-10 autocomplete, Rx Template Picker (5 seed templates), OCR (Tesseract.js) for historical records, multilingual prescription print (6 languages), Previous Consultations sidebar, Sign & Close |
+| 7. Billing | `/billing` | `Billing.tsx` | Invoices, payments |
+| 16. Analytics | `/analytics` | `Analytics.tsx` | Revenue/patient charts (recharts) |
+| 6. Engagement | `/engagement` | `Engagement.tsx` | WhatsApp journey notifications |
 
 ### Backend & Platform (live)
 - [x] Monorepo scaffold + migrator CLI (`init-global` / `provision` / `migrate` / `seed-demo`) — global migrations need `init-global`, tenant ones `migrate`
@@ -116,15 +118,20 @@ Update this file after every work session.
 
 ## 6. Backlog (not started)
 
-- [ ] Wire web pages to live API — Patients list/create, Appointments + Queue (endpoints already shipped), Dashboard metrics
+### Remaining Gap Items
+- [ ] R-18: Native Android app (React Native / Capacitor) — lowest priority
+- [ ] Wire stub backends (engagement campaigns, booking reservations, ABDM calls, teleconsultation) to real DB operations
+- [ ] Add i18n `t()` calls throughout existing page components (infrastructure complete, pages not yet localized)
+- [ ] Add WhatsApp delivery status indicators
+- [ ] Patient photo upload and display
+
+### Platform & Backend (future)
 - [ ] Queue management deep-view UI (token display, waiting-time tracking) — Epic 3 (API done)
 - [ ] Specialty EMR templates (Dental chart, Pediatrics growth charts, Dermatology lesion tracking, Gyn obstetric history) — Epic 12
-- [ ] ABDM/ABHA linking UI + consent management — Epic 13
 - [ ] Multi-branch switcher — Epic 14
 - [ ] Audit log viewer — Epic 15
 - [ ] AI Scribe dictation flow w/ mandatory review-before-save workflow — FR-5.2
 - [ ] Patient-friendly summary + language selection — FR-5.3
-- [ ] Prescription writer inside Consultation (currently diagnosis only)
 - [ ] GST invoice detail view — Epic 7
 
 ---
@@ -143,6 +150,8 @@ Update this file after every work session.
 | 2026-08-21 | **JWT + RBAC auth shipped end-to-end.** Login `{clinic(slug), phone, password}` → access JWT 15m (`sub/tid/schema/slug/roles/perms`) + rotating refresh JWT 7d stored as sha256 hash in tenant-schema `refresh_tokens` (migration `0003_auth.sql`). Node scrypt password hashing (`scrypt$saltB64$hashB64`, timingSafeEqual). Global guards: JwtAuthGuard (@Public opt-out) → PermissionsGuard (wildcard-aware via contracts `hasAllPermissions`). TenantGuard is token-first (spoofed x-tenant-id header loses to JWT tid). `/auth/login|refresh|logout|me`; demo users seeded with password `demo1234`; seeder now fully idempotent (users upsert, patients/allergies NOT EXISTS guard, appointments skip-if-today). Smoke suite reworked to bearer flow: **22/22 PASS** (login/bad-pw/unknown-clinic, no-token/tampered-token, RBAC pharmacist-denied + doctor-allowed, ISO spoof-header, refresh rotation single-use, /me, create+MRN uniqueness, leak scan, validation, cleanup). Gotchas: NestJS @Post defaults 201 (added @HttpCode(200)); `declare module 'express'` augmentation merges fine across files; Windows CRLF broke schema-name equality in tests (split on /\r?\n/). Lint + typecheck green all workspaces. Next: appointments module, web login screen + auth store. |
 | 2026-08-21 | **Clinic Type added per PRD §4.3/§7.2/Epic 12.** New `CLINIC_TYPES` contract enum (general/dental/pediatric/dermatology/gynecology) + `CLINIC_TYPE_LABELS`. Global migration `0003_clinic_type.sql` adds `tenants.clinic_type`; provisioner accepts it; demo tenants now have coherent identities — Sunrise **Dental**, Nova Children's **Pediatric**, Apex Skin & Aesthetics **Dermatology**, MediCore **General**. API surfaces `clinic.clinicType` in login/refresh/me; smoke asserts it (22/22). Web: sidebar brand now "Jioplix · Clinic OS · {type}", Dashboard subtitle uses clinic name, TopBar doctor specialty matches type, Add-ons Specialty Packs gained missing **Dermatology** card (PRD §7.2 lists 4 specialties). Gotcha: `npm run db -- migrate` only covers tenant schemas — global migrations need `init-global`. Lint/typecheck/web build green. |
 | 2026-08-21 | **Security + Web auth shipped.** (1) Fixed `npm audit` high: drizzle-orm 0.44.7 → **0.45.2** (GHSA-gpj5-g38j-94v9, SQL-injection via identifiers) — API rebuild + 22/22 smoke green on new version. User rotated JWT_SECRET for HS256. (2) **Web login + auth store, dependency-free:** `lib/api.ts` fetch client (machine-code ApiError, single-flight token refresh with retry-once, localStorage session v1, session-expiry handler); `auth/` split into context.ts / AuthContext.tsx / useAuth.ts (fast-refresh clean); bootstrap validates stored session via `/auth/me`. Login page: split-screen brand panel (specialty chips per PRD §4.3), clinic-ID/phone/password form, show-password toggle, friendly error copy mapped from INVALID_CREDENTIALS/TENANT_NOT_FOUND/VALIDATION_FAILED/NETWORK_ERROR, one-click demo-role fill (receptionist/doctor/pharmacist), a11y labels+aria-invalid+autocomplete. Routing: `/login` public, ProtectedRoute w/ branded splash + return-to-intended-route, catch-all redirect. Sidebar: real clinic type in brand line + **RBAC-aware nav** (Pharmacy→pharmacy:*, Lab→lab:*, Inventory→inventory:read, Procedures→procedures:*); TopBar: session user avatar/initials + dropdown (clinic info, sign-out, outside-click/Esc close); Dashboard greeting time-aware from session. Verified: CORS preflight 204 from :5173, live login returns Nova Children's Clinic (pediatric). Lint/typecheck/build green all workspaces. |
-| 2026-08-21 | **Brand realignment to Jioplix Design System v1.0.** User supplied logo.png (577x242 wordmark), favicon.png, hero.png and a draft theme CSS. Rewrote `index.css` as single-source system: Tailwind `@theme` tokens remapped to brand (primary=Jioplix Blue #1265e8 ramp, accent=Teal #08bfa9, navy ink surface-800/900 #10234a/#071f5c, status hues success #16a36a / danger #e5484d / info #1688f8), brand gradient utilities (blue-lightblue-teal) + navy-tinted shadows, deduped specialty theme block (Epic 12 clinic types) kept once. Dropped dead vanilla component CSS (.btn/.card/.sidebar-item/global th/td etc.) that nothing referenced and which would have clobbered Tailwind tables. Wired assets: favicon.png in index.html (+theme-color #071f5c, old favicon.svg removed), logo.png in Sidebar (wordmark + collapsed favicon mark) and Login (white chip on gradient panel, mobile header), favicon.png in auth Splash, hero.png framed above login form. All existing pages inherit rebrand via tokens - zero component churn. Web tsc -b exit 0, oxlint clean, build green (hero bundled). | 
+| 2026-08-21 | **Brand realignment to Jioplix Design System v1.0.** User supplied logo.png (577x242 wordmark), favicon.png, hero.png and a draft theme CSS. Rewrote `index.css` as single-source system: Tailwind `@theme` tokens remapped to brand (primary=Jioplix Blue #1265e8 ramp, accent=Teal #08bfa9, navy ink surface-800/900 #10234a/#071f5c, status hues success #16a36a / danger #e5484d / info #1688f8), brand gradient utilities (blue-lightblue-teal) + navy-tinted shadows, deduped specialty theme block (Epic 12 clinic types) kept once. Dropped dead vanilla component CSS (.btn/.card/.sidebar-item/global th/td etc.) that nothing referenced and which would have clobbered Tailwind tables. Wired assets: favicon.png in index.html (+theme-color #071f5c, old favicon.svg removed), logo.png in Sidebar (wordmark + collapsed favicon mark) and Login (white chip on gradient panel, mobile header), favicon.png in auth Splash, hero.png framed above login form. All existing pages inherit rebrand via tokens - zero component churn. Web tsc -b exit 0, oxlint clean, build green (hero bundled). |
+| 2026-08-25 | **Gap analysis audit + reconciliation.** Full source-code review against `gap_analysis_jioplix_vs_healthplix.md`. Discovered nearly all Sprint 1 & 2 recommended fixes were already implemented in prior sessions: R-01 (live Dashboard AI insights), R-02 (no duplicate StatCard), R-03 (NotificationPanel wired to bell), R-04 (Drug Master autocomplete), R-05 (RxTemplatePicker), R-06 (tabbed SOAP), R-07 (vitals trend charts), R-08 (ICD-10 autocomplete), R-09 (Skeleton components), R-10 (EmptyState), R-11 (Week calendar). Updated gap analysis with current scorecard, marked all resolved gaps, identified remaining Sprint 3-4 items. Updated progress.md backlog to reflect actual state. **Demo status: READY.** |
+| 2026-08-25 | **Sprint 3 + Sprint 4 (Release 1.2 + 1.3) shipped.** All 14 gap items implemented: R-12 AI Jobs wired to OpenAI LLM (gpt-4o-mini, keyword fallback); R-14 react-i18next infrastructure (14 Indian languages, locale files, LanguageSwitcher component); R-15 Campaign Builder UI (full page with template library + automation rules); R-16 Online Booking page (link generator, QR placeholder, config); R-17 PWA (manifest.json, service worker with cache-first static + network-first API, offline.html, OfflineBanner); R-19 PDF Export (patient summary, GST invoice, prescription PDFs via jsPDF + jspdf-autotable, wired to PatientProfile/Billing/Consultation); R-20 ABDM FHIR (7 API endpoints, FHIR R4 formatters, integration page); R-21 Dashboard date range filtering (7 presets + custom + revenue trend chart); R-22 Analytics real API data (daily-revenue/patients endpoints, period selector, AreaChart/BarChart/PieChart); R-23 Teleconsultation module (API + UI + DB schema); R-24 Onboarding wizard (6-step wizard, gated launch, API endpoints). All new backend modules registered in AppModule. All routes + sidebar nav wired. API builds clean. Web builds clean. Smoke tests: **49/49 all passing.** |
 
 Refer: gap_analysis_jioplix_vs_healthplix.md

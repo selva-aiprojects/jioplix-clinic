@@ -1,0 +1,63 @@
+{
+  "common": {
+    "appName": "জিঅ'প্লিক্স",
+    "save": "সংৰক্ষণ কৰক",
+    "cancel": "বাতিল কৰক",
+    "delete": "মচক",
+    "edit": "সম্পাদনা কৰক",
+    "search": "সন্ধান কৰক",
+    "loading": "ল'ড হৈ আছে…",
+    "noData": "কোনো তথ্য নাই",
+    "error": "কিবা ভুল হৈছে"
+  },
+  "nav": {
+    "dashboard": "ডেশ্বৰ্ড",
+    "patients": "ৰোগী",
+    "appointments": "এপয়েণ্টমেণ্ট",
+    "consultation": "পৰামৰ্শ",
+    "billing": "বিলিং",
+    "pharmacy": "ফাৰ্মেচী",
+    "laboratory": "পৰীক্ষাগাৰ",
+    "inventory": "ইনভেণ্টৰী",
+    "procedures": "প্ৰক্ৰিয়া",
+    "analytics": "বিশ্লেষণ",
+    "engagement": "এংগেজমেণ্ট",
+    "campaigns": "অভিযান"
+  },
+  "dashboard": {
+    "greeting": "শুভ পুৱা",
+    "liveQueue": "লাইভ শ্ৰেণী",
+    "quickActions": "দ্ৰুত কাৰ্য",
+    "aiInsights": "AI অন্তৰ্দৃষ্টি",
+    "todayCollections": "আজিৰ সংগ্ৰহ",
+    "patientFlow": "ৰোগী প্ৰৱাহ"
+  },
+  "consultation": {
+    "soap": "SOAP ন'ট",
+    "vitals": "ভাইটেল",
+    "diagnosis": "ৰোগ নিৰ্ণয়",
+    "prescription": "প্ৰেছক্ৰিপছন",
+    "aiDraft": "AI খচড়া",
+    "signAndClose": "স্বাক্ষৰ কৰক আৰু বন্ধ কৰক",
+    "previousConsultations": "পূৰ্বৱৰ্তী পৰামৰ্শ"
+  },
+  "billing": {
+    "invoices": "চালানি",
+    "payments": "পেমেণ্ট",
+    "collectPayment": "পেমেণ্ট সংগ্ৰহ কৰক",
+    "newInvoice": "নতুন চালানি",
+    "outstanding": "বকেয়া"
+  },
+  "patients": {
+    "register": "ৰোগী পঞ্জীয়ন",
+    "search": "ৰোগী সন্ধান কৰক",
+    "profile": "ৰোগী প্ৰ'ফাইল",
+    "timeline": "টাইমলাইন",
+    "vitals": "ভাইটেল"
+  },
+  "settings": {
+    "language": "ভাষা",
+    "profile": "প্ৰ'ফাইল",
+    "logout": "লগ আউট"
+  }
+}

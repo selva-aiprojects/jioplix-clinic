@@ -28,6 +28,13 @@ import { Icd10Module } from './icd10/icd10.module.js'
 import { RxTemplatesModule } from './rx-templates/rx-templates.module.js'
 import { NotificationsModule } from './notifications/notifications.module.js'
 import { AiJobsModule } from './ai-jobs/ai-jobs.module.js'
+import { AnalyticsModule } from './analytics/analytics.module.js'
+import { EngagementModule } from './engagement/engagement.module.js'
+import { TeleconsultationModule } from './teleconsultation/teleconsultation.module.js'
+import { OnboardingModule } from './onboarding/onboarding.module.js'
+import { AbdmModule } from './abdm/abdm.module.js'
+import { BookingModule } from './booking/booking.module.js'
+import { WhatsAppModule } from './whatsapp/whatsapp.module.js'
 
 @Module({
   controllers: [
@@ -63,6 +70,13 @@ import { AiJobsModule } from './ai-jobs/ai-jobs.module.js'
     RxTemplatesModule,
     NotificationsModule,
     AiJobsModule,
+    AnalyticsModule,
+    EngagementModule,
+    TeleconsultationModule,
+    AbdmModule,
+    WhatsAppModule,
+    BookingModule,
+    OnboardingModule,
   ],
 })
 export class AppModule {}

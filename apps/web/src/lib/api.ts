@@ -53,7 +53,7 @@ export function setSessionExpiredHandler(handler: (() => void) | null): void {
 }
 
 interface RequestOptions {
-  method?: 'GET' | 'POST' | 'PATCH' | 'PUT'
+  method?: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE'
   body?: unknown
   auth?: boolean
 }
@@ -869,4 +869,52 @@ export interface VitalsSnapshot {
 
 export async function listVitalsHistory(patientId: string): Promise<VitalsSnapshot[]> {
   return api<VitalsSnapshot[]>(`/patients/${patientId}/vitals`)
+}
+
+/* ============================ Analytics ============================ */
+
+export interface AnalyticsSummary {
+  period: { from: string; to: string }
+  revenue: { billedPaise: number; collectedPaise: number; pendingPaise: number }
+  patients: { total: number; new: number; returning: number }
+  appointments: { total: number; completed: number; cancelled: number; noShow: number }
+  consultations: { total: number; avgPerDay: number }
+  topDrugs: Array<{ drugName: string; count: number }>
+}
+
+export interface DailyRevenue {
+  date: string
+  billed: number
+  collected: number
+}
+
+export interface DailyPatients {
+  date: string
+  count: number
+}
+
+export async function getAnalyticsSummary(dateFrom?: string, dateTo?: string, branchId?: string): Promise<AnalyticsSummary> {
+  const params = new URLSearchParams()
+  if (dateFrom) params.set('dateFrom', dateFrom)
+  if (dateTo) params.set('dateTo', dateTo)
+  if (branchId) params.set('branchId', branchId)
+  const qs = params.toString()
+  return api<AnalyticsSummary>(`/analytics/summary${qs ? `?${qs}` : ''}`)
+}
+
+export async function getDailyRevenue(dateFrom?: string, dateTo?: string, branchId?: string): Promise<DailyRevenue[]> {
+  const params = new URLSearchParams()
+  if (dateFrom) params.set('dateFrom', dateFrom)
+  if (dateTo) params.set('dateTo', dateTo)
+  if (branchId) params.set('branchId', branchId)
+  const qs = params.toString()
+  return api<DailyRevenue[]>(`/analytics/revenue${qs ? `?${qs}` : ''}`)
+}
+
+export async function getDailyPatients(dateFrom?: string, dateTo?: string): Promise<DailyPatients[]> {
+  const params = new URLSearchParams()
+  if (dateFrom) params.set('dateFrom', dateFrom)
+  if (dateTo) params.set('dateTo', dateTo)
+  const qs = params.toString()
+  return api<DailyPatients[]>(`/analytics/patients${qs ? `?${qs}` : ''}`)
 }

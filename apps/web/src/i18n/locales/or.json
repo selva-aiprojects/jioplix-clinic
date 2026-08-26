@@ -1,0 +1,63 @@
+{
+  "common": {
+    "appName": "ଜିଓପ୍ଲିକ୍ସ",
+    "save": "ସଞ୍ଚୟ କରନ୍ତୁ",
+    "cancel": "ବାତିଲ କରନ୍ତୁ",
+    "delete": "ବିଲୋପ କରନ୍ତୁ",
+    "edit": "ସମ୍ପାଦନା କରନ୍ତୁ",
+    "search": "ସନ୍ଧାନ କରନ୍ତୁ",
+    "loading": "ଲୋଡ୍ ହେଉଛି…",
+    "noData": "କୌଣସି ତଥ୍ୟ ଉପଲବ୍ଧ ନାହିଁ",
+    "error": "କିଛି ଭୁଲ୍ ହୋଇଛି"
+  },
+  "nav": {
+    "dashboard": "ଡ୍ୟାସବୋର୍ଡ",
+    "patients": "ରୋଗୀ",
+    "appointments": "ଆପଏଣ୍ଟମେଣ୍ଟ",
+    "consultation": "ପରାମର୍ଶ",
+    "billing": "ବିଲିଂ",
+    "pharmacy": "ଫାର୍ମାସି",
+    "laboratory": "ପ୍ରୟୋଗଶାଳା",
+    "inventory": "ଇନ୍ଭେଣ୍ଟରୀ",
+    "procedures": "ପ୍ରକ୍ରିୟା",
+    "analytics": "ବିଶ୍ଳେଷଣ",
+    "engagement": "ଏନଗେଜମେଣ୍ଟ",
+    "campaigns": "ଅଭିଯାନ"
+  },
+  "dashboard": {
+    "greeting": "ଶୁଭ ସକାଳ",
+    "liveQueue": "ଲାଇଭ୍ କ୍ୟୁ",
+    "quickActions": "ଦ୍ରୁତ କାର୍ଯ୍ୟ",
+    "aiInsights": "AI ଅନ୍ତର୍ଦୃଷ୍ଟି",
+    "todayCollections": "ଆଜିର ସଂଗ୍ରହ",
+    "patientFlow": "ରୋଗୀ ପ୍ରବାହ"
+  },
+  "consultation": {
+    "soap": "SOAP ନୋଟ୍",
+    "vitals": "ଭାଇଟାଲ୍ସ",
+    "diagnosis": "ରୋଗ ନିର୍ଣ୍ଣୟ",
+    "prescription": "ପ୍ରେସକ୍ରିପ୍ସନ୍",
+    "aiDraft": "AI ଡ୍ରାଫ୍ଟ",
+    "signAndClose": "ସ୍ୱାକ୍ଷର କରନ୍ତୁ ଏବଂ ବନ୍ଦ କରନ୍ତୁ",
+    "previousConsultations": "ପୂର୍ବବର୍ତ୍ତୀ ପରାମର୍ଶ"
+  },
+  "billing": {
+    "invoices": "ଚାଲାନ",
+    "payments": "ପେମେଣ୍ଟ",
+    "collectPayment": "ପେମେଣ୍ଟ ସଂଗ୍ରହ",
+    "newInvoice": "ନୂଆ ଚାଲାନ",
+    "outstanding": "ବକେୟା"
+  },
+  "patients": {
+    "register": "ରୋଗୀ ପଞ୍ଜୀକରଣ",
+    "search": "ରୋଗୀ ଖୋଜନ୍ତୁ",
+    "profile": "ରୋଗୀ ପ୍ରୋଫାଇଲ୍",
+    "timeline": "ଟାଇମଲାଇନ୍",
+    "vitals": "ଭାଇଟାଲ୍ସ"
+  },
+  "settings": {
+    "language": "ଭାଷା",
+    "profile": "ପ୍ରୋଫାଇଲ୍",
+    "logout": "ଲଗ୍ ଆଉଟ୍"
+  }
+}

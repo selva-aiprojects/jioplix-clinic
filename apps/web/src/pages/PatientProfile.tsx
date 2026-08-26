@@ -9,9 +9,10 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts'
 import { Button } from '../components/ui'
-import { getPatient, listPatientEncounters, listInvoices, getPatientOutstanding } from '../lib/api'
-import type { Patient, PatientEncounterSummary, Invoice } from '../lib/api'
+import { getPatient, listPatientEncounters, listInvoices, getPatientOutstanding, listPrescriptionsByEncounter } from '../lib/api'
+import type { Patient, PatientEncounterSummary, Invoice, Prescription } from '../lib/api'
 import { getVitalsHistory } from '../lib/vitalsHistory'
+import { exportPatientSummaryPdf } from '../lib/pdfExport'
 
 function formatPaise(paise: number): string {
   return `₹${(paise / 100).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`
@@ -27,6 +28,7 @@ export default function PatientProfile() {
   const [patient, setPatient] = useState<Patient | null>(null)
   const [encounters, setEncounters] = useState<PatientEncounterSummary[]>([])
   const [invoices, setInvoices] = useState<Invoice[]>([])
+  const [prescriptions, setPrescriptions] = useState<Prescription[]>([])
   const [outstanding, setOutstanding] = useState(0)
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState<'timeline' | 'billing'>('timeline')
@@ -48,6 +50,9 @@ export default function PatientProfile() {
           setEncounters(encs)
           setInvoices(invs)
           setOutstanding(out.outstandingPaise)
+          // Load prescriptions from all encounters
+          const rxLists = await Promise.all(encs.map(e => listPrescriptionsByEncounter(e.id).catch(() => [])))
+          if (!cancelled) setPrescriptions(rxLists.flat())
         }
       } catch {
         if (!cancelled) setPatient(null)
@@ -105,7 +110,7 @@ export default function PatientProfile() {
           </div>
         </div>
         <div className="hidden md:flex gap-2">
-          <Button variant="secondary">
+          <Button variant="secondary" onClick={() => exportPatientSummaryPdf(p, encounters, getVitalsHistory(p.id), prescriptions)}>
             <Printer className="w-4 h-4" /> Print
           </Button>
           <Link

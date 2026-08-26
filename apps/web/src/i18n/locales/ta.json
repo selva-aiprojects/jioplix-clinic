@@ -1,0 +1,63 @@
+{
+  "common": {
+    "appName": "ஜியோப்ளிக்ஸ்",
+    "save": "சேமி",
+    "cancel": "ரத்துசெய்",
+    "delete": "நீக்கு",
+    "edit": "திருத்து",
+    "search": "தேடு",
+    "loading": "ஏற்றுகிறது…",
+    "noData": "தகவல் இல்லை",
+    "error": "ஏதோ தவறு நடந்தது"
+  },
+  "nav": {
+    "dashboard": "டாஷ்போர்டு",
+    "patients": "நோயாளிகள்",
+    "appointments": "நியமனங்கள்",
+    "consultation": "ஆலோசனை",
+    "billing": "பில்லிங்",
+    "pharmacy": "மருந்தகம்",
+    "laboratory": "ஆய்வகம்",
+    "inventory": "சரக்கு",
+    "procedures": "நடைமுறைகள்",
+    "analytics": "பகுப்பாய்வு",
+    "engagement": "ஈடுபாடு",
+    "campaigns": "பிரச்சாரங்கள்"
+  },
+  "dashboard": {
+    "greeting": "காலை வணக்கம்",
+    "liveQueue": "நேரடி வரிசை",
+    "quickActions": "விரைவு செயல்கள்",
+    "aiInsights": "AI நுண்ணறிவு",
+    "todayCollections": "இன்றைய வசூல்",
+    "patientFlow": "நோயாளர் ஓட்டம்"
+  },
+  "consultation": {
+    "soap": "SOAP குறிப்புகள்",
+    "vitals": "முக்கிய குறிகாட்டிகள்",
+    "diagnosis": "நோயறிதல்",
+    "prescription": "மருந்துச்சீட்டு",
+    "aiDraft": "AI வரைவு",
+    "signAndClose": "கையெழுத்திட்டு மூடு",
+    "previousConsultations": "முந்தைய ஆலோசனைகள்"
+  },
+  "billing": {
+    "invoices": "விலைப்பட்டியல்",
+    "payments": "பணம் செலுத்தல்",
+    "collectPayment": "பணம் வசூலி",
+    "newInvoice": "புதிய விலைப்பட்டியல்",
+    "outstanding": "நிலுவை"
+  },
+  "patients": {
+    "register": "நோயாளியை பதிவு செய்",
+    "search": "நோயாளிகளைத் தேடு",
+    "profile": "நோயாளர் சுயவிவரம்",
+    "timeline": "காலவரிசை",
+    "vitals": "முக்கிய குறிகாட்டிகள்"
+  },
+  "settings": {
+    "language": "மொழி",
+    "profile": "சுயவிவரம்",
+    "logout": "வெளியேறு"
+  }
+}

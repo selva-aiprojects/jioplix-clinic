@@ -2,6 +2,7 @@ import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-route
 import { AuthProvider } from './auth/AuthContext'
 import { useAuth } from './auth/useAuth'
 import Layout from './components/Layout'
+import OfflineBanner from './components/OfflineBanner'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import Patients from './pages/Patients'
@@ -18,6 +19,11 @@ import Procedures from './pages/Procedures'
 import Addons from './pages/Addons'
 import Landing from './pages/Landing'
 import UserManagement from './pages/UserManagement'
+import Teleconsultation from './pages/Teleconsultation'
+import Campaigns from './pages/Campaigns'
+import OnlineBooking from './pages/OnlineBooking'
+import ABDMIntegration from './pages/ABDMIntegration'
+import Onboarding from './pages/Onboarding'
 
 function Splash() {
   return (
@@ -36,6 +42,12 @@ function ProtectedRoute() {
   if (status === 'anonymous') {
     return <Navigate to="/login" replace state={{ from: location.pathname }} />
   }
+
+  const onboardingCompleted = localStorage.getItem('jioplix.onboarding.completed')
+  if (onboardingCompleted !== 'true') {
+    return <Onboarding />
+  }
+
   return <Layout />
 }
 
@@ -43,6 +55,7 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      <Route path="/onboarding" element={<Onboarding />} />
       <Route element={<ProtectedRoute />}>
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/patients" element={<Patients />} />
@@ -59,6 +72,10 @@ function AppRoutes() {
         <Route path="/procedures" element={<Procedures />} />
         <Route path="/addons" element={<Addons />} />
         <Route path="/users" element={<UserManagement />} />
+        <Route path="/teleconsultation" element={<Teleconsultation />} />
+        <Route path="/campaigns" element={<Campaigns />} />
+        <Route path="/online-booking" element={<OnlineBooking />} />
+        <Route path="/abdm" element={<ABDMIntegration />} />
       </Route>
       <Route path="/" element={<Landing />} />
       <Route path="*" element={<Navigate to="/" replace />} />
@@ -71,6 +88,7 @@ export default function App() {
     <AuthProvider>
       <BrowserRouter>
         <AppRoutes />
+        <OfflineBanner />
       </BrowserRouter>
     </AuthProvider>
   )

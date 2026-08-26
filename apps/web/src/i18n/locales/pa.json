@@ -1,0 +1,63 @@
+{
+  "common": {
+    "appName": "ਜਿਓਪਲਿਕਸ",
+    "save": "ਸੰਭਾਲੋ",
+    "cancel": "ਰੱਦ ਕਰੋ",
+    "delete": "ਮਿਟਾਓ",
+    "edit": "ਸੋਧੋ",
+    "search": "ਖੋਜੋ",
+    "loading": "ਲੋਡ ਹੋ ਰਿਹਾ ਹੈ…",
+    "noData": "ਕੋਈ ਡਾਟਾ ਉਪਲਬਧ ਨਹੀਂ",
+    "error": "ਕੁਝ ਗਲਤ ਹੋ ਗਿਆ"
+  },
+  "nav": {
+    "dashboard": "ਡੈਸ਼ਬੋਰਡ",
+    "patients": "ਮਰੀਜ਼",
+    "appointments": "ਅਪੋਇਂਟਮੈਂਟ",
+    "consultation": "ਸਲਾਹ",
+    "billing": "ਬਿਲਿੰਗ",
+    "pharmacy": "ਫਾਰਮੇਸੀ",
+    "laboratory": "ਲੈਬੋਰੇਟਰੀ",
+    "inventory": "ਇਨ੍ਵੈਂਟਰੀ",
+    "procedures": "ਪ੍ਰਕਿਰਿਆਵਾਂ",
+    "analytics": "ਵਿਸ਼ਲੇਸ਼ਣ",
+    "engagement": "ਸੰਲਗਨਤਾ",
+    "campaigns": "ਮੁਹਿੰਮਾਂ"
+  },
+  "dashboard": {
+    "greeting": "ਸ਼ੁਭ ਸਵੇਰ",
+    "liveQueue": "ਲਾਈਵ ਕਤਾਰ",
+    "quickActions": "ਤੇਜ਼ ਕਾਰਵਾਈਆਂ",
+    "aiInsights": "AI ਸੂਝ",
+    "todayCollections": "ਅੱਜ ਦੀ ਵਸੂਲੀ",
+    "patientFlow": "ਮਰੀਜ਼ ਪ੍ਰਵਾਹ"
+  },
+  "consultation": {
+    "soap": "SOAP ਨੋਟਸ",
+    "vitals": "ਵਾਇਟਲਜ਼",
+    "diagnosis": "ਨਿਦਾਨ",
+    "prescription": "ਪ੍ਰਿਸਕ੍ਰਿਪਸ਼ਨ",
+    "aiDraft": "AI ਡਰਾਫਟ",
+    "signAndClose": "ਦਸਤਖਤ ਕਰੋ ਅਤੇ ਬੰਦ ਕਰੋ",
+    "previousConsultations": "ਪਿਛਲੀਆਂ ਸਲਾਹਾਂ"
+  },
+  "billing": {
+    "invoices": "ਚਲਾਨ",
+    "payments": "ਭੁਗਤਾਨ",
+    "collectPayment": "ਭੁਗਤਾਨ ਇਕੱਠਾ",
+    "newInvoice": "ਨਵਾਂ ਚਲਾਨ",
+    "outstanding": "ਬਾਕੀ"
+  },
+  "patients": {
+    "register": "ਮਰੀਜ਼ ਰਜਿਸਟਰ",
+    "search": "ਮਰੀਜ਼ ਖੋਜੋ",
+    "profile": "ਮਰੀਜ਼ ਪ੍ਰੋਫਾਈਲ",
+    "timeline": "ਟਾਈਮਲਾਈਨ",
+    "vitals": "ਵਾਇਟਲਜ਼"
+  },
+  "settings": {
+    "language": "ਭਾਸ਼ਾ",
+    "profile": "ਪ੍ਰੋਫਾਈਲ",
+    "logout": "ਸਾਈਨ ਆਊਟ"
+  }
+}

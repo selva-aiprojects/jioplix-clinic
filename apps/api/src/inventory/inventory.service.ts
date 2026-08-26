@@ -45,6 +45,17 @@ export class InventoryService {
     })
   }
 
+  async getById(schemaName: string, itemId: string): Promise<InventoryItemView | null> {
+    return this.db.withTenant(schemaName, async (db) => {
+      const [row] = await db
+        .select()
+        .from(inventoryItems)
+        .where(eq(inventoryItems.id, itemId))
+        .limit(1)
+      return row ? this.toView(row) : null
+    })
+  }
+
   async create(schemaName: string, input: InventoryItemCreate): Promise<InventoryItemView> {
     return this.db.withTenant(schemaName, async (db) =>
       db.transaction(async (tx) => {

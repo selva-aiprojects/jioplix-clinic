@@ -21,17 +21,18 @@ export class DrugMasterService {
 
   async search(schemaName: string, q: string, limit = 12): Promise<DrugMasterView[]> {
     return this.db.withTenant(schemaName, (db) => {
+      const trimmed = q.trim()
       const base = db.select().from(drugMaster)
-      const query = q.trim()
+      const query = trimmed
         ? base.where(
             or(
-              ilike(drugMaster.brand, `%${query}%`),
-              ilike(drugMaster.generic, `%${query}%`),
-              ilike(drugMaster.category, `%${query}%`),
+              ilike(drugMaster.brand, `%${trimmed}%`),
+              ilike(drugMaster.generic, `%${trimmed}%`),
+              ilike(drugMaster.category, `%${trimmed}%`),
             ),
           )
         : base
-      return query
+      return trimmed
         ? query.limit(limit)
         : query.orderBy(desc(drugMaster.createdAt)).limit(limit)
     })

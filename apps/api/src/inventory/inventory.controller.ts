@@ -30,6 +30,14 @@ export class InventoryController {
     }
   }
 
+  @Get('inventory/items/:id')
+  @RequirePermissions('inventory:read')
+  async getById(@CurrentTenant() tenant: TenantContext, @Param('id') id: string) {
+    const item = await this.inv.getById(tenant.schemaName, id)
+    if (!item) throw new BadRequestException('ITEM_NOT_FOUND')
+    return { data: item }
+  }
+
   @Post('inventory/items')
   @RequirePermissions('inventory:create')
   async create(@CurrentTenant() tenant: TenantContext, @Body() body: unknown) {

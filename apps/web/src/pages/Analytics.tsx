@@ -1,4 +1,4 @@
-// TODO: wire to backend analytics API when endpoints are available
+import { useEffect, useState, useMemo } from 'react'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Area, AreaChart,
@@ -8,38 +8,86 @@ import {
   TrendingUp, Sparkles,
 } from 'lucide-react'
 import { PageHeader, StatCard } from '../components/ui'
+import { SkeletonCard } from '../components/Skeleton'
+import { getAnalyticsSummary, getDailyRevenue, getDailyPatients } from '../lib/api'
+import type { AnalyticsSummary, DailyRevenue, DailyPatients } from '../lib/api'
 
-const revenueData = [
-  { month: 'Mar', revenue: 320000, consultations: 180 },
-  { month: 'Apr', revenue: 345000, consultations: 195 },
-  { month: 'May', revenue: 310000, consultations: 170 },
-  { month: 'Jun', revenue: 380000, consultations: 210 },
-  { month: 'Jul', revenue: 420000, consultations: 235 },
-  { month: 'Aug', revenue: 465000, consultations: 258 },
-]
+type Period = '7d' | '30d' | '90d'
 
-const dailyData = [
-  { day: 'Mon', patients: 22, revenue: 16500 },
-  { day: 'Tue', patients: 28, revenue: 21000 },
-  { day: 'Wed', patients: 25, revenue: 18750 },
-  { day: 'Thu', patients: 30, revenue: 22500 },
-  { day: 'Fri', patients: 26, revenue: 19500 },
-  { day: 'Sat', patients: 18, revenue: 13500 },
-]
+function getDateRange(period: Period): { from: string; to: string } {
+  const today = new Date()
+  const to = today.toISOString().slice(0, 10)
+  const days = period === '7d' ? 6 : period === '30d' ? 29 : 89
+  const from = new Date(today.getTime() - days * 86400000).toISOString().slice(0, 10)
+  return { from, to }
+}
 
-const doctorPerformance = [
-  { name: 'Dr. Priya', consultations: 145, revenue: 280000, satisfaction: 4.8, utilization: 82 },
-  { name: 'Dr. Anand', consultations: 113, revenue: 185000, satisfaction: 4.6, utilization: 75 },
-]
-
-const departmentSplit = [
-  { name: 'General Medicine', value: 45, color: '#0d9488' },
-  { name: 'Follow-up', value: 25, color: '#6366f1' },
-  { name: 'Vaccination', value: 15, color: '#f59e0b' },
-  { name: 'Other', value: 15, color: '#94a3b8' },
-]
+function paise(n: number): string {
+  if (n >= 10000000) return `₹${(n / 10000000).toFixed(2)}Cr`
+  if (n >= 100000) return `₹${(n / 100000).toFixed(1)}L`
+  if (n >= 1000) return `₹${(n / 1000).toFixed(1)}k`
+  return `₹${n}`
+}
 
 export default function Analytics() {
+  const [period, setPeriod] = useState<Period>('30d')
+  const [summary, setSummary] = useState<AnalyticsSummary | null>(null)
+  const [revenueData, setRevenueData] = useState<DailyRevenue[]>([])
+  const [patientData, setPatientData] = useState<DailyPatients[]>([])
+  const [loading, setLoading] = useState(true)
+
+  const { from, to } = getDateRange(period)
+
+  useEffect(() => {
+    let cancelled = false
+    async function load() {
+      setLoading(true)
+      try {
+        const [s, r, p] = await Promise.all([
+          getAnalyticsSummary(from, to),
+          getDailyRevenue(from, to),
+          getDailyPatients(from, to),
+        ])
+        if (!cancelled) {
+          setSummary(s)
+          setRevenueData(r)
+          setPatientData(p)
+        }
+      } catch {
+        if (!cancelled) {
+          setSummary(null)
+          setRevenueData([])
+          setPatientData([])
+        }
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+    load()
+    return () => { cancelled = true }
+  }, [from, to])
+
+  const revenueTrend = useMemo(() =>
+    revenueData.map(d => ({ ...d, billed: d.billed / 100, collected: d.collected / 100 })),
+    [revenueData]
+  )
+
+  const patientTrend = useMemo(() =>
+    patientData.map(d => ({ date: d.date.slice(5) || d.date, count: d.count })),
+    [patientData]
+  )
+
+  const drugSplit = useMemo(() => {
+    if (!summary?.topDrugs?.length) return []
+    const total = summary.topDrugs.reduce((s, d) => s + d.count, 0)
+    const colors = ['#1265e8', '#08bfa9', '#f59e0b', '#e5484d', '#6366f1', '#16a36a', '#ec4899', '#94a3b8']
+    return summary.topDrugs.slice(0, 6).map((d, i) => ({
+      name: d.drugName,
+      value: Math.round((d.count / total) * 100),
+      color: colors[i % colors.length],
+    }))
+  }, [summary])
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -47,147 +95,160 @@ export default function Analytics() {
         title="Analytics"
         subtitle="Clinic performance and insights"
         actions={
-          <select className="px-4 py-2 rounded-xl bg-white border border-surface-200 text-[13px] text-surface-600 focus:outline-none focus:ring-2 focus:ring-primary-500/30">
-            <option>This Month</option>
-            <option>Last Month</option>
-            <option>This Quarter</option>
-          </select>
+          <div className="flex items-center gap-1 bg-surface-100 rounded-xl p-1">
+            {(['7d', '30d', '90d'] as Period[]).map(p => (
+              <button
+                key={p}
+                onClick={() => setPeriod(p)}
+                className={`px-3 py-1.5 rounded-lg text-[12px] font-medium transition-all ${
+                  period === p
+                    ? 'bg-white text-primary-700 shadow-sm'
+                    : 'text-surface-500 hover:text-surface-700'
+                }`}
+              >
+                {p === '7d' ? '7 Days' : p === '30d' ? '30 Days' : '90 Days'}
+              </button>
+            ))}
+          </div>
         }
       />
 
-      {/* KPI Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {[
-          { label: 'Monthly Revenue', value: '₹4.65L', change: '+10.7%', up: true, icon: IndianRupee, tone: 'green' as const },
-          { label: 'Total Patients', value: '258', change: '+9.8%', up: true, icon: Users, tone: 'teal' as const },
-          { label: 'Avg Wait Time', value: '14 min', change: '-8%', up: false, icon: Clock, tone: 'amber' as const },
-          { label: 'Doctor Utilization', value: '78%', change: '+3%', up: true, icon: Stethoscope, tone: 'indigo' as const },
-        ].map(kpi => (
-          <StatCard key={kpi.label} {...kpi} />
-        ))}
+        {loading ? (
+          Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="bg-white rounded-2xl border border-surface-100 p-5 animate-pulse">
+              <div className="h-3 w-20 bg-surface-200 rounded mb-2" />
+              <div className="h-6 w-16 bg-surface-200 rounded" />
+            </div>
+          ))
+        ) : (
+          <>
+            <StatCard label="Total Revenue" value={paise(summary?.revenue.billedPaise ?? 0)} icon={IndianRupee} tone="green" />
+            <StatCard label="Total Patients" value={String(summary?.patients.total ?? 0)} icon={Users} tone="teal" />
+            <StatCard label="Consultations" value={String(summary?.consultations.total ?? 0)} icon={Stethoscope} tone="indigo" />
+            <StatCard label="Avg/Day" value={String(summary?.consultations.avgPerDay ?? 0)} icon={Clock} tone="amber" />
+          </>
+        )}
       </div>
 
-      {/* Charts Row */}
       <div className="grid lg:grid-cols-3 gap-6">
-        {/* Revenue Trend */}
         <div className="lg:col-span-2 bg-white rounded-2xl border border-surface-100 shadow-healthcare p-5">
           <h3 className="text-[14px] font-semibold text-surface-800 mb-4">Revenue Trend</h3>
-          <ResponsiveContainer width="100%" height={280}>
-            <AreaChart data={revenueData}>
-              <defs>
-                <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#0d9488" stopOpacity={0.2}/>
-                  <stop offset="95%" stopColor="#0d9488" stopOpacity={0}/>
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-              <XAxis dataKey="month" tick={{ fontSize: 12, fill: '#94a3b8' }} />
-              <YAxis tick={{ fontSize: 12, fill: '#94a3b8' }} tickFormatter={(v) => `₹${v/1000}k`} />
-              <Tooltip
-                contentStyle={{ borderRadius: 12, border: '1px solid #e2e8f0', fontSize: 12 }}
-                formatter={(value) => [`₹${Number(value).toLocaleString()}`, 'Revenue']}
-              />
-              <Area type="monotone" dataKey="revenue" stroke="#0d9488" strokeWidth={2} fillOpacity={1} fill="url(#colorRevenue)" />
-            </AreaChart>
-          </ResponsiveContainer>
+          {loading ? <SkeletonCard /> : revenueTrend.length === 0 ? (
+            <div className="h-[280px] flex items-center justify-center text-[12px] text-surface-400">No revenue data for this period</div>
+          ) : (
+            <ResponsiveContainer width="100%" height={280}>
+              <AreaChart data={revenueTrend}>
+                <defs>
+                  <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#1265e8" stopOpacity={0.2} />
+                    <stop offset="95%" stopColor="#1265e8" stopOpacity={0} />
+                  </linearGradient>
+                  <linearGradient id="colorCollected" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#16a36a" stopOpacity={0.2} />
+                    <stop offset="95%" stopColor="#16a36a" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#94a3b8' }} tickFormatter={d => d.slice(5)} />
+                <YAxis tick={{ fontSize: 12, fill: '#94a3b8' }} tickFormatter={v => `₹${(v / 1000).toFixed(0)}k`} />
+                <Tooltip contentStyle={{ borderRadius: 12, border: '1px solid #e2e8f0', fontSize: 12 }} formatter={(value) => [`₹${Number(value).toLocaleString('en-IN')}`, '']} />
+                <Area type="monotone" dataKey="billed" stroke="#1265e8" strokeWidth={2} fillOpacity={1} fill="url(#colorRevenue)" name="Billed" />
+                <Area type="monotone" dataKey="collected" stroke="#16a36a" strokeWidth={2} fillOpacity={1} fill="url(#colorCollected)" name="Collected" />
+              </AreaChart>
+            </ResponsiveContainer>
+          )}
         </div>
 
-        {/* Department Split */}
         <div className="bg-white rounded-2xl border border-surface-100 shadow-healthcare p-5">
-          <h3 className="text-[14px] font-semibold text-surface-800 mb-4">Consultation Breakdown</h3>
-          <ResponsiveContainer width="100%" height={200}>
-            <PieChart>
-              <Pie
-                data={departmentSplit}
-                cx="50%"
-                cy="50%"
-                innerRadius={50}
-                outerRadius={80}
-                paddingAngle={4}
-                dataKey="value"
-              >
-                {departmentSplit.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.color} />
+          <h3 className="text-[14px] font-semibold text-surface-800 mb-4">Top Drugs</h3>
+          {loading ? <SkeletonCard /> : drugSplit.length === 0 ? (
+            <div className="h-[200px] flex items-center justify-center text-[12px] text-surface-400">No prescriptions yet</div>
+          ) : (
+            <>
+              <ResponsiveContainer width="100%" height={200}>
+                <PieChart>
+                  <Pie data={drugSplit} cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={4} dataKey="value">
+                    {drugSplit.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip contentStyle={{ borderRadius: 12, border: '1px solid #e2e8f0', fontSize: 12 }} />
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="space-y-2 mt-2">
+                {drugSplit.map(d => (
+                  <div key={d.name} className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded" style={{ backgroundColor: d.color }} />
+                    <span className="text-[12px] text-surface-600 flex-1 truncate">{d.name}</span>
+                    <span className="text-[12px] font-semibold text-surface-700">{d.value}%</span>
+                  </div>
                 ))}
-              </Pie>
-              <Tooltip contentStyle={{ borderRadius: 12, border: '1px solid #e2e8f0', fontSize: 12 }} />
-            </PieChart>
-          </ResponsiveContainer>
-          <div className="space-y-2 mt-2">
-            {departmentSplit.map(d => (
-              <div key={d.name} className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded" style={{ backgroundColor: d.color }} />
-                <span className="text-[12px] text-surface-600 flex-1">{d.name}</span>
-                <span className="text-[12px] font-semibold text-surface-700">{d.value}%</span>
               </div>
-            ))}
-          </div>
+            </>
+          )}
         </div>
       </div>
 
-      {/* Doctor Performance + Daily Chart */}
       <div className="grid lg:grid-cols-2 gap-6">
-        {/* Daily Patients */}
         <div className="bg-white rounded-2xl border border-surface-100 shadow-healthcare p-5">
-          <h3 className="text-[14px] font-semibold text-surface-800 mb-4">Daily Patients This Week</h3>
-          <ResponsiveContainer width="100%" height={250}>
-            <BarChart data={dailyData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-              <XAxis dataKey="day" tick={{ fontSize: 12, fill: '#94a3b8' }} />
-              <YAxis tick={{ fontSize: 12, fill: '#94a3b8' }} />
-              <Tooltip contentStyle={{ borderRadius: 12, border: '1px solid #e2e8f0', fontSize: 12 }} />
-              <Bar dataKey="patients" fill="#6366f1" radius={[6, 6, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+          <h3 className="text-[14px] font-semibold text-surface-800 mb-4">Daily Patients</h3>
+          {loading ? <SkeletonCard /> : patientTrend.length === 0 ? (
+            <div className="h-[250px] flex items-center justify-center text-[12px] text-surface-400">No patient data for this period</div>
+          ) : (
+            <ResponsiveContainer width="100%" height={250}>
+              <BarChart data={patientTrend}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#94a3b8' }} />
+                <YAxis tick={{ fontSize: 12, fill: '#94a3b8' }} />
+                <Tooltip contentStyle={{ borderRadius: 12, border: '1px solid #e2e8f0', fontSize: 12 }} />
+                <Bar dataKey="count" fill="#6366f1" radius={[6, 6, 0, 0]} name="Patients" />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
         </div>
 
-        {/* Doctor Performance */}
         <div className="bg-white rounded-2xl border border-surface-100 shadow-healthcare p-5">
-          <h3 className="text-[14px] font-semibold text-surface-800 mb-4">Doctor Performance</h3>
-          <div className="space-y-4">
-            {doctorPerformance.map(doc => (
-              <div key={doc.name} className="p-4 rounded-xl bg-surface-50 border border-surface-100">
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary-400 to-accent-500 flex items-center justify-center text-white text-[12px] font-bold">
-                    {doc.name.split(' ').map(n => n[0]).join('')}
-                  </div>
-                  <div>
-                    <p className="text-[13px] font-semibold text-surface-800">{doc.name}</p>
-                    <p className="text-[11px] text-surface-400">Utilization: {doc.utilization}%</p>
-                  </div>
+          <h3 className="text-[14px] font-semibold text-surface-800 mb-4">Summary</h3>
+          {loading ? (
+            <div className="space-y-3">
+              {Array.from({ length: 5 }).map((_, i) => <div key={i} className="h-4 bg-surface-100 rounded animate-pulse" />)}
+            </div>
+          ) : summary ? (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-xl bg-surface-50 p-3">
+                  <p className="text-[11px] text-surface-400">Billed</p>
+                  <p className="text-[16px] font-bold text-surface-800">{paise(summary.revenue.billedPaise)}</p>
                 </div>
-                <div className="grid grid-cols-3 gap-3">
-                  <div>
-                    <p className="text-[11px] text-surface-400">Consultations</p>
-                    <p className="text-[15px] font-bold text-surface-800">{doc.consultations}</p>
-                  </div>
-                  <div>
-                    <p className="text-[11px] text-surface-400">Revenue</p>
-                    <p className="text-[15px] font-bold text-surface-800">₹{(doc.revenue/1000).toFixed(0)}k</p>
-                  </div>
-                  <div>
-                    <p className="text-[11px] text-surface-400">Satisfaction</p>
-                    <p className="text-[15px] font-bold text-surface-800">⭐ {doc.satisfaction}</p>
-                  </div>
+                <div className="rounded-xl bg-surface-50 p-3">
+                  <p className="text-[11px] text-surface-400">Collected</p>
+                  <p className="text-[16px] font-bold text-success-600">{paise(summary.revenue.collectedPaise)}</p>
                 </div>
-                {/* Utilization Bar */}
-                <div className="mt-3">
-                  <div className="w-full h-2 bg-surface-200 rounded-full overflow-hidden">
-                    <div className="h-full bg-gradient-to-r from-primary-400 to-primary-600 rounded-full transition-all" style={{ width: `${doc.utilization}%` }} />
-                  </div>
+                <div className="rounded-xl bg-surface-50 p-3">
+                  <p className="text-[11px] text-surface-400">Pending</p>
+                  <p className="text-[16px] font-bold text-warning-600">{paise(summary.revenue.pendingPaise)}</p>
+                </div>
+                <div className="rounded-xl bg-surface-50 p-3">
+                  <p className="text-[11px] text-surface-400">Appointments</p>
+                  <p className="text-[16px] font-bold text-surface-800">{summary.appointments.total}</p>
                 </div>
               </div>
-            ))}
-          </div>
-
-          {/* AI Insight */}
-          <div className="mt-4 p-4 rounded-xl bg-gradient-to-r from-primary-50 to-accent-50 border border-primary-200/50">
-            <div className="flex items-center gap-2 mb-2">
-              <Sparkles className="w-4 h-4 text-primary-600" />
-              <span className="text-[12px] font-semibold text-primary-700">AI Insight</span>
+              <div className="p-4 rounded-xl bg-gradient-to-r from-primary-50 to-accent-50 border border-primary-200/50">
+                <div className="flex items-center gap-2 mb-2">
+                  <Sparkles className="w-4 h-4 text-primary-600" />
+                  <span className="text-[12px] font-semibold text-primary-700">Period Insight</span>
+                </div>
+                <p className="text-[12px] text-primary-700/80">
+                  {summary.revenue.billedPaise > 0
+                    ? `₹${(summary.revenue.collectedPaise / summary.revenue.billedPaise * 100).toFixed(0)}% collection rate with ${summary.consultations.total} consultations averaging ${summary.consultations.avgPerDay}/day.`
+                    : `No billing activity in this period. ${summary.consultations.total} consultations recorded.`}
+                </p>
+              </div>
             </div>
-            <p className="text-[12px] text-primary-700/80">Dr. Anand's average waiting time increased 18% this month. Consider adjusting slot allocation.</p>
-          </div>
+          ) : (
+            <p className="text-[12px] text-surface-400">No data available</p>
+          )}
         </div>
       </div>
     </div>

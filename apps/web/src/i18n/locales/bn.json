@@ -1,0 +1,63 @@
+{
+  "common": {
+    "appName": "জিওপ্লিক্স",
+    "save": "সংরক্ষণ",
+    "cancel": "বাতিল",
+    "delete": "মুছুন",
+    "edit": "সম্পাদনা",
+    "search": "অনুসন্ধান",
+    "loading": "লোড হচ্ছে…",
+    "noData": "কোনো তথ্য পাওয়া যায়নি",
+    "error": "কিছু ভুল হয়েছে"
+  },
+  "nav": {
+    "dashboard": "ড্যাশবোর্ড",
+    "patients": "রোগী",
+    "appointments": "অ্যাপয়েন্টমেন্ট",
+    "consultation": "পরামর্শ",
+    "billing": "বিলিং",
+    "pharmacy": "ফার্মেসি",
+    "laboratory": "ল্যাবরেটরি",
+    "inventory": "ইনভেন্টরি",
+    "procedures": "প্রক্রিয়া",
+    "analytics": "বিশ্লেষণ",
+    "engagement": "এনগেজমেন্ট",
+    "campaigns": "প্রচারণা"
+  },
+  "dashboard": {
+    "greeting": "শুভ সকাল",
+    "liveQueue": "লাইভ কিউ",
+    "quickActions": "দ্রুত পদক্ষেপ",
+    "aiInsights": "AI অন্তর্দৃষ্টি",
+    "todayCollections": "আজকের আদায়",
+    "patientFlow": "রোগী প্রবাহ"
+  },
+  "consultation": {
+    "soap": "SOAP নোট",
+    "vitals": "মূল্যবান সংকেত",
+    "diagnosis": "রোগ নির্ণয়",
+    "prescription": "প্রেসক্রিপশন",
+    "aiDraft": "AI খসড়া",
+    "signAndClose": "স্বাক্ষর করুন এবং বন্ধ করুন",
+    "previousConsultations": "পূর্ববর্তী পরামর্শ"
+  },
+  "billing": {
+    "invoices": "চালান",
+    "payments": "পেমেন্ট",
+    "collectPayment": "পেমেন্ট সংগ্রহ",
+    "newInvoice": "নতুন চালান",
+    "outstanding": "বকেয়"
+  },
+  "patients": {
+    "register": "রোগী নিবন্ধন",
+    "search": "রোগী খুঁজুন",
+    "profile": "রোগী প্রোফাইল",
+    "timeline": "টাইমলাইন",
+    "vitals": "মূল্যবান সংকেত"
+  },
+  "settings": {
+    "language": "ভাষা",
+    "profile": "প্রোফাইল",
+    "logout": "সাইন আউট"
+  }
+}

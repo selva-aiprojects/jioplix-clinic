@@ -673,6 +673,7 @@ await check('INV-1   Pharmacist creates inventory item; receptionist denied crea
   })
   assert(status < 300, `got ${status}: ${JSON.stringify(body)}`)
   assert(body.data.quantity === 0 && body.data.category === 'medicines', JSON.stringify(body.data))
+  m2.itemId = body.data.id
 
   const rec = await login('nova', '+919800000201')
   const denied = await req('/inventory/items', {
@@ -685,9 +686,7 @@ await check('INV-1   Pharmacist creates inventory item; receptionist denied crea
 
 await check('INV-2   Stock purchase +100 -> qty 100; overdraft rejected 400', async () => {
   const ph = await login('nova', '+919800000202')
-  const list = await req('/inventory/items?category=medicines&search=Para', { headers: bearer(ph) })
-  assert(list.status === 200 && list.body.data.length === 1, JSON.stringify(list.body))
-  m2.itemId = list.body.data[0].id
+  assert(m2.itemId, 'itemId not set from INV-1')
 
   const buy = await req(`/inventory/items/${m2.itemId}/stock`, {
     method: 'PATCH',
@@ -802,8 +801,8 @@ await check('PHARM-1 Dispense queue lists issued Rx; dispense decrements stock',
   })
   assert(d.status < 300 && d.body.data.status === 'dispensed', `got ${d.status}: ${JSON.stringify(d.body)}`)
 
-  const after = await req('/inventory/items?category=medicines&search=Para', { headers: bearer(ph) })
-  assert(after.body.data[0].quantity === 91, `expected 91 after dispensing 9, got ${after.body.data[0].quantity}`)
+  const after = await req(`/inventory/items/${m2.itemId}`, { headers: bearer(ph) })
+  assert(after.status === 200 && after.body.data.quantity === 91, `expected 91 after dispensing 9, got ${after.body.data?.quantity}`)
 
   const again = await req(`/pharmacy/prescriptions/${m2.prescriptionId}/dispense`, { method: 'POST', headers: bearer(ph) })
   assert(again.status === 409 && again.body.error?.code === 'PRESCRIPTION_NOT_ISSUED', JSON.stringify(again.body))

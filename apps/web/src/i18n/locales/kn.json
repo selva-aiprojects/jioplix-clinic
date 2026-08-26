@@ -1,0 +1,63 @@
+{
+  "common": {
+    "appName": "ಜಿಯೋಪ್ಲಿಕ್ಸ್",
+    "save": "ಉಳಿಸಿ",
+    "cancel": "ರದ್ದುಮಾಡಿ",
+    "delete": "ಅಳಿಸಿ",
+    "edit": "ಸಂಪಾದಿಸಿ",
+    "search": "ಹುಡುಕಿ",
+    "loading": "ಲೋಡ್ ಆಗುತ್ತಿದೆ…",
+    "noData": "ಯಾವುದೇ ಡೇಟಾ ಲಭ್ಯವಿಲ್ಲ",
+    "error": "ಏನೋ ತಪ್ಪಾಗಿದೆ"
+  },
+  "nav": {
+    "dashboard": "ಡ್ಯಾಶ್‌ಬೋರ್ಡ್",
+    "patients": "ರೋಗಿಗಳು",
+    "appointments": "ಅಪಾಯಿಂಟ್‌ಮೆಂಟ್‌ಗಳು",
+    "consultation": "ಸಮಾಲೋಚನೆ",
+    "billing": "ಬಿಲ್ಲಿಂಗ್",
+    "pharmacy": "ಫಾರ್ಮಸಿ",
+    "laboratory": "ಪ್ರಯೋಗಾಲಯ",
+    "inventory": "ಇನ್ವೆಂಟರಿ",
+    "procedures": "ಪ್ರಕ್ರಿಯೆಗಳು",
+    "analytics": "ವಿಶ್ಲೇಷಣೆ",
+    "engagement": "ಎಂಜೇಜ್‌ಮೆಂಟ್",
+    "campaigns": "ಅಭಿಯಾನಗಳು"
+  },
+  "dashboard": {
+    "greeting": "ಶುಭೋದಯ",
+    "liveQueue": "ಲೈವ್ ಕ್ಯೂ",
+    "quickActions": "ತ್ವರಿತ ಕ್ರಿಯೆಗಳು",
+    "aiInsights": "AI ಒಳನೋಟಗಳು",
+    "todayCollections": "ಇಂದಿನ ಸಂಗ್ರಹಗಳು",
+    "patientFlow": "ರೋಗಿ ಹರಿವು"
+  },
+  "consultation": {
+    "soap": "SOAP ಟಿಪ್ಪಣಿಗಳು",
+    "vitals": "ವೈಟಲ್ಸ್",
+    "diagnosis": "ರೋಗನಿರ್ಣಯ",
+    "prescription": "ಪ್ರಿಸ್ಕ್ರಿಪ್ಷನ್",
+    "aiDraft": "AI ಡ್ರಾಫ್ಟ್",
+    "signAndClose": "ಸಹಿ ಮಾಡಿ ಮತ್ತು ಮುಚ್ಚಿ",
+    "previousConsultations": "ಹಿಂದಿನ ಸಮಾಲೋಚನೆಗಳು"
+  },
+  "billing": {
+    "invoices": "ಇನ್ವಾಯಿಸ್‌ಗಳು",
+    "payments": "ಪಾವತಿಗಳು",
+    "collectPayment": "ಪಾವತಿ ಸಂಗ್ರಹಿಸಿ",
+    "newInvoice": "ಹೊಸ ಇನ್ವಾಯಿಸ್",
+    "outstanding": "ಬಾಕಿ"
+  },
+  "patients": {
+    "register": "ರೋಗಿಯನ್ನು ನೋಂದಾಯಿಸಿ",
+    "search": "ರೋಗಿಗಳನ್ನು ಹುಡುಕಿ",
+    "profile": "ರೋಗಿ ಪ್ರೊಫೈಲ್",
+    "timeline": "ಟೈಮ್‌ಲೈನ್",
+    "vitals": "ವೈಟಲ್ಸ್"
+  },
+  "settings": {
+    "language": "ಭಾಷೆ",
+    "profile": "ಪ್ರೊಫೈಲ್",
+    "logout": "ಲಾಗ್ ಔಟ್"
+  }
+}

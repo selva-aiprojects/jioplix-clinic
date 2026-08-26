@@ -30,15 +30,25 @@ export class NotificationsService {
     schemaName: string,
     filters: { unread?: boolean; category?: string },
   ): Promise<NotificationView[]> {
-    return this.db.withTenant(schemaName, (db) => {
+    return this.db.withTenant(schemaName, async (db) => {
       const conditions = []
       if (filters.unread) conditions.push(eq(notifications.isRead, false))
       if (filters.category) conditions.push(eq(notifications.category, filters.category))
-      return db
+      const rows = await db
         .select()
         .from(notifications)
         .where(conditions.length ? and(...conditions) : undefined)
         .orderBy(desc(notifications.createdAt))
+      return rows.map((r) => ({
+        id: r.id,
+        recipientUserId: r.recipientUserId ?? null,
+        category: r.category,
+        title: r.title,
+        body: r.body,
+        href: r.href ?? null,
+        isRead: r.isRead,
+        createdAt: r.createdAt instanceof Date ? r.createdAt.toISOString() : String(r.createdAt),
+      }))
     })
   }
 

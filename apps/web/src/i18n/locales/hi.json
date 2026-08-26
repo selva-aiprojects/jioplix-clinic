@@ -1,0 +1,63 @@
+{
+  "common": {
+    "appName": "जियोप्लिक्स",
+    "save": "सहेजें",
+    "cancel": "रद्द करें",
+    "delete": "हटाएं",
+    "edit": "संपादित करें",
+    "search": "खोजें",
+    "loading": "लोड हो रहा है…",
+    "noData": "कोई डेटा उपलब्ध नहीं है",
+    "error": "कुछ गड़बड़ हुई"
+  },
+  "nav": {
+    "dashboard": "डैशबोर्ड",
+    "patients": "मरीज़",
+    "appointments": "अपॉइंटमेंट",
+    "consultation": "परामर्श",
+    "billing": "बिलिंग",
+    "pharmacy": "फार्मेसी",
+    "laboratory": "प्रयोगशाला",
+    "inventory": "इन्वेंटरी",
+    "procedures": "प्रक्रियाएँ",
+    "analytics": "एनालिटिक्स",
+    "engagement": "एंगेजमेंट",
+    "campaigns": "अभियान"
+  },
+  "dashboard": {
+    "greeting": "शुभ प्रभात",
+    "liveQueue": "लाइव कतार",
+    "quickActions": "त्वरित क्रियाएँ",
+    "aiInsights": "AI अंतर्दृष्टि",
+    "todayCollections": "आज का संग्रह",
+    "patientFlow": "मरीज़ प्रवाह"
+  },
+  "consultation": {
+    "soap": "SOAP नोट्स",
+    "vitals": "महत्वपूर्ण संकेत",
+    "diagnosis": "निदान",
+    "prescription": "प्रिस्क्रिप्शन",
+    "aiDraft": "AI ड्राफ्ट",
+    "signAndClose": "हस्ताक्षर करें और बंद करें",
+    "previousConsultations": "पिछले परामर्श"
+  },
+  "billing": {
+    "invoices": "चालान",
+    "payments": "भुगतान",
+    "collectPayment": "भुगतान एकत्र करें",
+    "newInvoice": "नया चालान",
+    "outstanding": "बकाया"
+  },
+  "patients": {
+    "register": "मरीज़ पंजीकृत करें",
+    "search": "मरीज़ खोजें",
+    "profile": "मरीज़ प्रोफ़ाइल",
+    "timeline": "टाइमलाइन",
+    "vitals": "महत्वपूर्ण संकेत"
+  },
+  "settings": {
+    "language": "भाषा",
+    "profile": "प्रोफ़ाइल",
+    "logout": "साइन आउट"
+  }
+}

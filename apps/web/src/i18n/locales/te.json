@@ -1,0 +1,63 @@
+{
+  "common": {
+    "appName": "జియోప్లిక్స్",
+    "save": "సేవ్ చేయి",
+    "cancel": "రద్దు చేయి",
+    "delete": "తొలగించు",
+    "edit": "సవరించు",
+    "search": "శోధించు",
+    "loading": "లోడ్ అవుతోంది…",
+    "noData": "డేటా అందుబాటులో లేదు",
+    "error": "ఏదో తప్పు జరిగింది"
+  },
+  "nav": {
+    "dashboard": "డ్యాష్‌బోర్డ్",
+    "patients": "రోగులు",
+    "appointments": "అపాయింట్‌మెంట్లు",
+    "consultation": "సంప్రదింపు",
+    "billing": "బిల్లింగ్",
+    "pharmacy": "ఫార్మసీ",
+    "laboratory": "లాబొరేటరీ",
+    "inventory": "ఇన్వెంటరీ",
+    "procedures": "విధానాలు",
+    "analytics": "విశ్లేషణలు",
+    "engagement": "ఎంగేజ్‌మెంట్",
+    "campaigns": "ప్రచారాలు"
+  },
+  "dashboard": {
+    "greeting": "శుభోదయం",
+    "liveQueue": "లైవ్ క్యూ",
+    "quickActions": "త్వరిత చర్యలు",
+    "aiInsights": "AI అంతర్దృష్టులు",
+    "todayCollections": "ఈ రోజు సేకరణలు",
+    "patientFlow": "రోగి ప్రవాహం"
+  },
+  "consultation": {
+    "soap": "SOAP నోట్స్",
+    "vitals": "వైటల్స్",
+    "diagnosis": "నిర్ధారణ",
+    "prescription": "ప్రిస్క్రిప్షన్",
+    "aiDraft": "AI డ్రాఫ్ట్",
+    "signAndClose": "సంతకం చేసి మూసివేయి",
+    "previousConsultations": "మునుపటి సంప్రదింపులు"
+  },
+  "billing": {
+    "invoices": "ఇన్వాయిస్‌లు",
+    "payments": "చెల్లింపులు",
+    "collectPayment": "చెల్లింపు సేకరించు",
+    "newInvoice": "కొత్త ఇన్వాయిస్",
+    "outstanding": "బాకీ"
+  },
+  "patients": {
+    "register": "రోగిని నమోదు చేయి",
+    "search": "రోగులను శోధించు",
+    "profile": "రోగి ప్రొఫైల్",
+    "timeline": "టైమ్‌లైన్",
+    "vitals": "వైటల్స్"
+  },
+  "settings": {
+    "language": "భాష",
+    "profile": "ప్రొఫైల్",
+    "logout": "లాగ్ అవుట్"
+  }
+}

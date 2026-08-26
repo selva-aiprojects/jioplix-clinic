@@ -1,0 +1,63 @@
+{
+  "common": {
+    "appName": "ജിയോപ്ലിക്സ്",
+    "save": "സേവ് ചെയ്യുക",
+    "cancel": "റദ്ദാക്കുക",
+    "delete": "ഇല്ലാതാക്കുക",
+    "edit": "എഡിറ്റ് ചെയ്യുക",
+    "search": "തിരയുക",
+    "loading": "ലോഡ് ചെയ്യുന്നു…",
+    "noData": "ഡേറ്റ ലഭ്യമല്ല",
+    "error": "എന്തോ തെറ്റ് സംഭവിച്ചു"
+  },
+  "nav": {
+    "dashboard": "ഡാഷ്‌ബോർഡ്",
+    "patients": "രോഗികൾ",
+    "appointments": "അപ്പോയിന്റ്മെന്റുകൾ",
+    "consultation": "കൂടിയാലോചന",
+    "billing": "ബില്ലിംഗ്",
+    "pharmacy": "ഫാർമസി",
+    "laboratory": "ലാബറട്ടറി",
+    "inventory": "ഇൻവെന്ററി",
+    "procedures": "പ്രക്രിയകൾ",
+    "analytics": "വിശകലനം",
+    "engagement": "എഞ്ചേജ്‌മെന്റ്",
+    "campaigns": "ക്യാമ്പയിനുകൾ"
+  },
+  "dashboard": {
+    "greeting": "ശുഭ പ്രഭാതം",
+    "liveQueue": "ലൈവ് ക്യൂ",
+    "quickActions": "ദ്രുത പ്രവർത്തനങ്ങൾ",
+    "aiInsights": "AI ഉൾക്കാഴ്ചകൾ",
+    "todayCollections": "ഇന്നത്തെ ശേഖരണം",
+    "patientFlow": "രോഗി ഫ്ലോ"
+  },
+  "consultation": {
+    "soap": "SOAP കുറിപ്പുകൾ",
+    "vitals": "വൈറ്റൽസ്",
+    "diagnosis": "രോഗനിർണയം",
+    "prescription": "കുറിപ്പ്",
+    "aiDraft": "AI ഡ്രാഫ്റ്റ്",
+    "signAndClose": "ഒപ്പിടുകയും അടയ്ക്കുകയും ചെയ്യുക",
+    "previousConsultations": "മുൻകാല കൂടിയാലോചനകൾ"
+  },
+  "billing": {
+    "invoices": "ഇൻവോയ്സുകൾ",
+    "payments": "പേയ്‌മെന്റുകൾ",
+    "collectPayment": "പേയ്‌മെന്റ് ശേഖരിക്കുക",
+    "newInvoice": "പുതിയ ഇൻവോയ്സ്",
+    "outstanding": "ബാക്കി"
+  },
+  "patients": {
+    "register": "രോഗിയെ രജിസ്റ്റർ ചെയ്യുക",
+    "search": "രോഗികളെ തിരയുക",
+    "profile": "രോഗി പ്രൊഫൈൽ",
+    "timeline": "ടൈംലൈൻ",
+    "vitals": "വൈറ്റൽസ്"
+  },
+  "settings": {
+    "language": "ഭാഷ",
+    "profile": "പ്രൊഫൈൽ",
+    "logout": "ലോഗ് ഔട്ട്"
+  }
+}
