@@ -989,6 +989,26 @@ export async function platformDashboard(): Promise<PlatformDashboard> {
   return api<PlatformDashboard>('/platform/dashboard')
 }
 
+/* ============================ Platform Settings ============================ */
+
+export interface PlatformSettings {
+  payment_enabled: boolean
+  registration_enabled: boolean
+  trial_days: number
+  grace_period_days: number
+  platform_name: string
+  support_email: string
+  support_phone: string
+}
+
+export async function getPlatformSettings(): Promise<PlatformSettings> {
+  return api<PlatformSettings>('/platform/settings')
+}
+
+export async function updatePlatformSettings(settings: Partial<PlatformSettings>): Promise<PlatformSettings> {
+  return api<PlatformSettings>('/platform/settings', { method: 'PUT', body: settings })
+}
+
 /* ============================ Analytics ============================ */
 
 export interface AnalyticsSummary {

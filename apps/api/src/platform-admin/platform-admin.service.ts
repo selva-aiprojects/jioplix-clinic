@@ -210,4 +210,35 @@ export class PlatformAdminService implements OnModuleInit {
       revenue: { totalPending, totalPaid },
     }
   }
+
+  // ─── Platform Settings ───
+
+  async getSettings(): Promise<Record<string, unknown>> {
+    const { rows } = await this.db.pool.query<{ key: string; value: unknown }>(
+      `SELECT key, value FROM public.platform_settings`,
+    )
+    const settings: Record<string, unknown> = {}
+    for (const r of rows) settings[r.key] = r.value
+    return settings
+  }
+
+  async updateSettings(input: Record<string, unknown>): Promise<Record<string, unknown>> {
+    for (const [key, value] of Object.entries(input)) {
+      await this.db.pool.query(
+        `INSERT INTO public.platform_settings (key, value, updated_at)
+         VALUES ($1, $2, now())
+         ON CONFLICT (key) DO UPDATE SET value = $2, updated_at = now()`,
+        [key, JSON.stringify(value)],
+      )
+    }
+    return this.getSettings()
+  }
+
+  async getSetting<T = unknown>(key: string): Promise<T | null> {
+    const { rows } = await this.db.pool.query<{ value: T }>(
+      `SELECT value FROM public.platform_settings WHERE key = $1`,
+      [key],
+    )
+    return rows[0]?.value ?? null
+  }
 }

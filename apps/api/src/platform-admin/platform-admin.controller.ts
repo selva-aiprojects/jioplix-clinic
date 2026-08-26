@@ -6,6 +6,7 @@ import {
   HttpCode,
   HttpStatus,
   Post,
+  Put,
 } from '@nestjs/common'
 import { platformLoginSchema, tenantActionSchema } from '@jioplix/contracts'
 import { PlatformAdminService } from './platform-admin.service.js'
@@ -44,5 +45,18 @@ export class PlatformAdminController {
   async dashboard() {
     const stats = await this.platform.getDashboardStats()
     return { data: stats }
+  }
+
+  @Get('settings')
+  async getSettings() {
+    const settings = await this.platform.getSettings()
+    return { data: settings }
+  }
+
+  @Put('settings')
+  @HttpCode(HttpStatus.OK)
+  async updateSettings(@Body() body: Record<string, unknown>) {
+    const settings = await this.platform.updateSettings(body)
+    return { data: settings }
   }
 }
