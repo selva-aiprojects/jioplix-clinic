@@ -1,14 +1,13 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
-  AlertCircle, ArrowLeft, CheckCircle2, CreditCard, Globe, Loader2, Mail,
-  Phone, Settings, Shield, Users,
+  AlertCircle, ArrowLeft, CheckCircle2, CreditCard, Globe, Loader2,
+  Settings, Shield,
 } from 'lucide-react'
 import {
   getPlatformSettings, updatePlatformSettings,
   type PlatformSettings,
 } from '../lib/api'
-import BrandLogo from '../components/BrandLogo'
 
 const STORAGE_KEY = 'jioplix.platform_admin'
 

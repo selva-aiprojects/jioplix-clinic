@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import {
   AlertCircle, ArrowLeft, Building2, Check, CheckCircle2, ChevronRight,
   ClipboardPlus, Loader2, Lock, Mail, Phone, Pill, ShieldCheck,
@@ -31,7 +31,6 @@ function formatPrice(paise: number): string {
 }
 
 export default function Register() {
-  const navigate = useNavigate()
   const [step, setStep] = useState<Step>('clinic')
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
