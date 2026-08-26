@@ -775,7 +775,10 @@ export default function Landing() {
       {/* ─── Footer ──────────────────────────────────────────────────────── */}
       <footer className="mx-auto flex max-w-7xl items-center justify-between px-5 py-6 text-[11px] text-surface-400 lg:px-8">
         <BrandLogo size="sm" />
-        <span>Care operations, thoughtfully connected.</span>
+        <div className="flex items-center gap-4">
+          <Link to="/admin" className="hover:text-primary-600 transition-colors">Admin</Link>
+          <span>Care operations, thoughtfully connected.</span>
+        </div>
       </footer>
     </main>
   )

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, Navigate } from 'react-router-dom'
 import {
   AlertCircle, ArrowLeft, CheckCircle2, CreditCard, Globe, Loader2,
   Settings, Shield,
@@ -84,11 +84,7 @@ export default function AdminSettings() {
   }
 
   if (!user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-surface-50">
-        <Loader2 className="w-6 h-6 animate-spin text-primary-600" />
-      </div>
-    )
+    return <Navigate to="/admin" replace />
   }
 
   return (

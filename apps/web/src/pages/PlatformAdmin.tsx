@@ -6,9 +6,10 @@ import {
 } from 'lucide-react'
 import {
   platformLogin, platformListTenants, platformTenantAction, platformDashboard,
-  RAZORPAY_PAYMENT_LINK,
+  setSession, RAZORPAY_PAYMENT_LINK,
   type PlatformAdminUser, type PlatformTenant, type PlatformDashboard,
 } from '../lib/api'
+import type { SessionUser } from '../auth/types'
 import BrandLogo from '../components/BrandLogo'
 
 const STORAGE_KEY = 'jioplix.platform_admin'
@@ -58,6 +59,21 @@ export default function PlatformAdmin() {
       const res = await platformLogin(email, password)
       localStorage.setItem(STORAGE_KEY, JSON.stringify(res.user))
       setUser(res.user)
+      // Also set shared session so api() calls carry the auth token
+      const platformUser: SessionUser = {
+        id: res.user.userId,
+        fullName: res.user.fullName,
+        phone: '',
+        specialty: null,
+        roles: [res.user.role],
+        permissions: ['*'],
+        clinic: { id: '', name: 'Platform', slug: 'platform', clinicType: 'general' },
+      }
+      setSession({
+        accessToken: res.accessToken,
+        refreshToken: '',
+        user: platformUser,
+      })
     } catch {
       setError('Invalid credentials.')
     } finally {
@@ -67,6 +83,7 @@ export default function PlatformAdmin() {
 
   function handleLogout() {
     localStorage.removeItem(STORAGE_KEY)
+    setSession(null)
     setUser(null)
     setTenants([])
     setStats(null)
