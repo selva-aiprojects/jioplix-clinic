@@ -16,6 +16,11 @@ export const ERROR_CODES = {
   PERMISSION_DENIED: 'PERMISSION_DENIED',
   FORBIDDEN: 'FORBIDDEN',
   NOT_FOUND: 'NOT_FOUND',
+  SLUG_TAKEN: 'SLUG_TAKEN',
+  EMAIL_TAKEN: 'EMAIL_TAKEN',
+  PHONE_TAKEN: 'PHONE_TAKEN',
+  SUBSCRIPTION_EXPIRED: 'SUBSCRIPTION_EXPIRED',
+  PLAN_NOT_FOUND: 'PLAN_NOT_FOUND',
 } as const
 
 export type ErrorCode = (typeof ERROR_CODES)[keyof typeof ERROR_CODES]
@@ -119,6 +124,19 @@ export const loginSchema = z.object({
   password: z.string().min(8).max(128),
 })
 export type LoginRequest = z.infer<typeof loginSchema>
+
+export const sendOtpSchema = z.object({
+  clinic: z.string().min(2).max(63).regex(/^[a-z0-9-]+$/),
+  phone: z.string().regex(/^[0-9+\-\s]{8,15}$/),
+})
+export type SendOtpRequest = z.infer<typeof sendOtpSchema>
+
+export const verifyOtpSchema = z.object({
+  clinic: z.string().min(2).max(63).regex(/^[a-z0-9-]+$/),
+  phone: z.string().regex(/^[0-9+\-\s]{8,15}$/),
+  otp: z.string().length(6).regex(/^\d{6}$/),
+})
+export type VerifyOtpRequest = z.infer<typeof verifyOtpSchema>
 
 export const refreshSchema = z.object({
   refreshToken: z.string().min(20),
@@ -484,5 +502,66 @@ export interface DispenseQueueItem {
     stockAvailable: boolean
   }[]
 }
+
+/* ============================ Tenant Registration ============================ */
+
+export const registerSchema = z.object({
+  clinicName: z.string().min(2).max(120),
+  slug: z.string().min(2).max(63).regex(/^[a-z0-9-]+$/, 'Slug must be lowercase alphanumeric with hyphens'),
+  clinicType: z.enum(CLINIC_TYPES).default('general'),
+  planCode: z.enum(PLAN_CODES).default('professional'),
+  adminName: z.string().min(2).max(100),
+  phone: z.string().regex(/^[0-9+\-\s]{8,15}$/),
+  email: z.string().email(),
+  password: z.string().min(8).max(128),
+})
+export type RegisterRequest = z.infer<typeof registerSchema>
+
+/* ============================ Subscription ============================ */
+
+export const SUBSCRIPTION_STATUSES = ['trialing', 'active', 'past_due', 'cancelled'] as const
+export type SubscriptionStatus = (typeof SUBSCRIPTION_STATUSES)[number]
+
+export interface PlanInfo {
+  code: string
+  name: string
+  monthlyPricePaise: number
+  addons: string[]
+}
+
+export interface SubscriptionInfo {
+  id: string
+  tenantId: string
+  planCode: string
+  status: SubscriptionStatus
+  currentPeriodStart: string
+  currentPeriodEnd: string
+  trialEnd: string | null
+}
+
+export interface TenantInvoice {
+  id: string
+  tenantId: string
+  amountPaise: number
+  status: 'pending' | 'paid' | 'overdue' | 'void'
+  billingPeriodStart: string
+  billingPeriodEnd: string
+  dueDate: string
+  paidAt: string | null
+}
+
+/* ============================ Platform Admin ============================ */
+
+export const platformLoginSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(8).max(128),
+})
+export type PlatformLoginRequest = z.infer<typeof platformLoginSchema>
+
+export const tenantActionSchema = z.object({
+  tenantId: z.string().uuid(),
+  action: z.enum(['suspend', 'unsuspend', 'offboard']),
+})
+export type TenantActionRequest = z.infer<typeof tenantActionSchema>
 
 export { uuidv7 as newId }

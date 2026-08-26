@@ -4,6 +4,9 @@ import { useAuth } from './auth/useAuth'
 import Layout from './components/Layout'
 import OfflineBanner from './components/OfflineBanner'
 import Login from './pages/Login'
+import Register from './pages/Register'
+import PlatformAdmin from './pages/PlatformAdmin'
+import Suspended from './pages/Suspended'
 import Dashboard from './pages/Dashboard'
 import Patients from './pages/Patients'
 import PatientProfile from './pages/PatientProfile'
@@ -55,6 +58,9 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      <Route path="/register" element={<Register />} />
+      <Route path="/admin" element={<PlatformAdmin />} />
+      <Route path="/suspended" element={<Suspended />} />
       <Route path="/onboarding" element={<Onboarding />} />
       <Route element={<ProtectedRoute />}>
         <Route path="/dashboard" element={<Dashboard />} />

@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common'
 import { and, eq, isNull } from 'drizzle-orm'
 import { createHash, randomUUID } from 'node:crypto'
-import type { AuthContext, LoginRequest } from '@jioplix/contracts'
+import type { AuthContext, LoginRequest, VerifyOtpRequest } from '@jioplix/contracts'
 import { newId } from '@jioplix/contracts'
 import { DbService } from '../db/db.service.js'
 import { refreshTokens, roles, userBranchRoles, users } from '../db/schema/tenant.js'
@@ -122,6 +122,57 @@ export class AuthService {
       slug: tenant.slug,
     }
     return this.issueSession(ctx, tenant, found.fullName, found.specialty, input.phone)
+  }
+
+  async loginByOtp(input: VerifyOtpRequest): Promise<SessionTokens> {
+    const tenant = await this.resolveTenantBySlug(input.clinic)
+
+    // Load user context without password verification (OTP already verified)
+    const found = await this.loadUserContextNoPassword(tenant.schema_name, input.phone)
+    if (!found) throw new UnauthorizedException('INVALID_CREDENTIALS')
+
+    const ctx: AuthContext = {
+      ...found.ctx,
+      tenantId: tenant.id,
+      slug: tenant.slug,
+    }
+    return this.issueSession(ctx, tenant, found.fullName, found.specialty, input.phone)
+  }
+
+  private async loadUserContextNoPassword(
+    schemaName: string,
+    phone: string,
+  ): Promise<{ ctx: AuthContext; fullName: string; specialty: string | null } | null> {
+    return this.db.withTenant(schemaName, async (db) => {
+      const [user] = await db
+        .select()
+        .from(users)
+        .where(and(eq(users.phone, phone), eq(users.status, 'active')))
+        .limit(1)
+      if (!user) return null
+
+      const roleRows = await db
+        .select({ key: roles.key, permissions: roles.permissions })
+        .from(userBranchRoles)
+        .innerJoin(roles, eq(userBranchRoles.roleId, roles.id))
+        .where(eq(userBranchRoles.userId, user.id))
+
+      const roleKeys = [...new Set(roleRows.map((r) => r.key))]
+      const permissions = [...new Set(roleRows.flatMap((r) => r.permissions))]
+
+      return {
+        ctx: {
+          userId: user.id,
+          tenantId: '',
+          schemaName,
+          slug: '',
+          roles: roleKeys,
+          permissions,
+        },
+        fullName: user.fullName,
+        specialty: user.specialty,
+      }
+    })
   }
 
   private async issueSession(

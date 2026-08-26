@@ -1,14 +1,16 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import {
   AlertCircle, Baby, Eye, EyeOff, Fingerprint, HeartHandshake,
   Loader2, Lock, Phone, ScanFace, ShieldCheck, Stethoscope, Users, Pill,
-  CheckCircle2,
+  CheckCircle2, KeyRound, ArrowLeft, Timer, MessageSquare,
 } from 'lucide-react'
 import { ApiError } from '../lib/api'
 import { useAuth } from '../auth/useAuth'
 import BrandLogo from '../components/BrandLogo'
+
+const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api/v1'
 
 const specialties = [
   { icon: ScanFace, label: 'Dental' },
@@ -25,6 +27,8 @@ const demoAccounts = [
 
 const DEMO_PASSWORD = 'demo1234'
 
+type LoginMode = 'otp' | 'password'
+
 function friendlyError(err: unknown): string {
   if (err instanceof ApiError) {
     switch (err.code) {
@@ -32,10 +36,18 @@ function friendlyError(err: unknown): string {
         return 'Phone number or password is incorrect.'
       case 'TENANT_NOT_FOUND':
         return 'No active clinic found with that Clinic ID. Check the spelling and try again.'
+      case 'TENANT_SUSPENDED':
+        return 'Your clinic account has been suspended. Please contact support to restore access.'
       case 'VALIDATION_FAILED':
         return 'Please check your details — clinic ID, phone and password are all required.'
       case 'NETWORK_ERROR':
         return 'Cannot reach the Jioplix server. Check that the API is running and try again.'
+      case 'OTP_EXPIRED':
+        return 'This OTP has expired. Please request a new one.'
+      case 'OTP_INVALID':
+        return 'The OTP you entered is incorrect. Please try again.'
+      case 'OTP_MAX_ATTEMPTS':
+        return 'Too many failed attempts. Please request a new OTP.'
       default:
         return `Something went wrong (${err.code}). Please try again.`
     }
@@ -51,13 +63,37 @@ export default function Login() {
   const [clinic, setClinic] = useState('')
   const [phone, setPhone] = useState('')
   const [password, setPassword] = useState('')
+  const [otp, setOtp] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // OTP flow state
+  const [mode, setMode] = useState<LoginMode>('otp')
+  const [otpSent, setOtpSent] = useState(false)
+  const [otpExpiry, setOtpExpiry] = useState(0)
+  const [otpSending, setOtpSending] = useState(false)
+  const [otpVerifying, setOtpVerifying] = useState(false)
+
   const from = (location.state as { from?: string } | null)?.from ?? '/dashboard'
 
-  async function handleSubmit(e: FormEvent) {
+  // OTP countdown timer
+  useEffect(() => {
+    if (otpExpiry <= 0) return
+    const id = setInterval(() => {
+      setOtpExpiry((prev) => {
+        if (prev <= 1) {
+          clearInterval(id)
+          return 0
+        }
+        return prev - 1
+      })
+    }, 1000)
+    return () => clearInterval(id)
+  }, [otpExpiry > 0])
+
+  // Password login
+  async function handlePasswordLogin(e: FormEvent) {
     e.preventDefault()
     if (pending) return
     setError(null)
@@ -72,28 +108,93 @@ export default function Login() {
     }
   }
 
+  // Send OTP
+  async function handleSendOtp() {
+    if (otpSending || !clinic.trim() || !phone.trim()) return
+    setError(null)
+    setOtpSending(true)
+    try {
+      const res = await fetch(`${API_BASE}/auth/send-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clinic: clinic.trim().toLowerCase(), phone: phone.trim() }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new ApiError(data?.error?.code ?? 'UNKNOWN', res.status)
+      setOtpSent(true)
+      setOtpExpiry(data.data?.expiresIn ?? 300)
+    } catch (err) {
+      setError(friendlyError(err))
+    } finally {
+      setOtpSending(false)
+    }
+  }
+
+  // Verify OTP + login
+  async function handleVerifyOtp(e: FormEvent) {
+    e.preventDefault()
+    if (otpVerifying || otp.length !== 6) return
+    setError(null)
+    setOtpVerifying(true)
+    try {
+      const res = await fetch(`${API_BASE}/auth/verify-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          clinic: clinic.trim().toLowerCase(),
+          phone: phone.trim(),
+          otp: otp.trim(),
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new ApiError(data?.error?.code ?? 'UNKNOWN', res.status)
+
+      // Store session (same as password login)
+      const session = data.data
+      if (session?.accessToken) {
+        localStorage.setItem('jioplix.session.v1', JSON.stringify({
+          accessToken: session.accessToken,
+          refreshToken: session.refreshToken,
+          user: session.user,
+          expiresAt: Date.now() + 15 * 60 * 1000,
+          version: 1,
+        }))
+        window.location.href = from
+      }
+    } catch (err) {
+      setError(friendlyError(err))
+    } finally {
+      setOtpVerifying(false)
+    }
+  }
+
   function fillDemo(accountPhone: string) {
     setClinic('nova')
     setPhone(accountPhone)
     setPassword(DEMO_PASSWORD)
     setError(null)
+    setOtpSent(false)
+    setOtp('')
+  }
+
+  function resetOtpFlow() {
+    setOtpSent(false)
+    setOtp('')
+    setError(null)
   }
 
   return (
     <div className="min-h-screen flex bg-surface-50">
-      {/* Brand Showcase Panel (Left on Desktop) */}
+      {/* Brand Showcase Panel */}
       <div className="hidden lg:flex w-[48%] xl:w-[45%] relative overflow-hidden bg-gradient-to-br from-primary-600 via-primary-700 to-accent-700 flex-col justify-between p-12 text-white shadow-2xl">
-        {/* Background ambient lighting */}
         <div className="absolute -top-32 -right-32 w-96 h-96 rounded-full bg-white/10 blur-3xl pointer-events-none" />
         <div className="absolute bottom-20 -left-20 w-80 h-80 rounded-full bg-accent-400/20 blur-3xl pointer-events-none" />
         <div className="absolute inset-0 bg-[radial-gradient(#ffffff_1px,transparent_1px)] [background-size:24px_24px] opacity-10 pointer-events-none" />
 
-        {/* Big Brand Logo Header */}
         <div className="relative z-10">
           <BrandLogo variant="on-dark" size="3xl" />
         </div>
 
-        {/* Hero Section */}
         <div className="relative z-10 max-w-lg my-auto py-8">
           <h1 className="text-4xl xl:text-5xl font-bold leading-tight tracking-tight text-white">
             Healthcare Management, Reimagined.
@@ -102,14 +203,9 @@ export default function Login() {
             Unified patient health records, live queue tracking, multi-specialty clinical notes,
             integrated pharmacy dispensing, and digital workflows in one secure platform.
           </p>
-
-          {/* Specialties Pills */}
           <div className="mt-8 flex flex-wrap gap-2.5">
             {specialties.map((s) => (
-              <span
-                key={s.label}
-                className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white/10 border border-white/20 text-[13px] font-medium backdrop-blur-md shadow-sm hover:bg-white/15 transition-colors"
-              >
+              <span key={s.label} className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white/10 border border-white/20 text-[13px] font-medium backdrop-blur-md shadow-sm hover:bg-white/15 transition-colors">
                 <s.icon className="w-4 h-4 text-accent-200" />
                 {s.label}
               </span>
@@ -117,123 +213,246 @@ export default function Login() {
           </div>
         </div>
 
-        {/* Security & Compliance Footer */}
         <div className="relative z-10 flex items-center gap-2 text-[12px] text-white/80 pt-6 border-t border-white/15">
           <ShieldCheck className="w-4 h-4 text-accent-300" />
           <span>ABDM-ready · Data isolated per clinic · Audit-logged</span>
         </div>
       </div>
 
-      {/* Form Panel (Right) */}
+      {/* Form Panel */}
       <div className="flex-1 flex items-center justify-center p-6 sm:p-12">
         <div className="w-full max-w-md bg-white sm:p-8 sm:rounded-3xl sm:border sm:border-surface-200 sm:shadow-healthcare-lg">
-          {/* Big Logo on Mobile and Small Screens */}
+          {/* Mobile Logo */}
           <div className="lg:hidden flex justify-center mb-8">
             <BrandLogo variant="pure" size="3xl" />
           </div>
 
-          {/* Clean Header */}
+          {/* Header */}
           <div className="mb-6">
             <h2 className="text-2xl font-bold text-surface-900 tracking-tight">
-              Sign in
+              {otpSent ? 'Enter verification code' : 'Sign in'}
             </h2>
             <p className="text-[13px] text-surface-500 mt-1">
-              Welcome back. Enter your clinic credentials to continue.
+              {otpSent
+                ? `We sent a 6-digit code to ${phone}`
+                : 'Enter your phone number to receive a verification code.'}
             </p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4" noValidate>
-            <div>
-              <label htmlFor="clinic" className="block text-[12px] font-semibold text-surface-700 mb-1.5">
-                Clinic ID
-              </label>
-              <input
-                id="clinic"
-                type="text"
-                autoComplete="organization"
-                placeholder="e.g. nova"
-                value={clinic}
-                onChange={(e) => setClinic(e.target.value)}
-                aria-invalid={!!error}
-                required
-                className="w-full px-3.5 py-2.5 text-[13px] font-medium bg-surface-50/50 border border-surface-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 focus:bg-white transition-all placeholder:text-surface-400"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="phone" className="block text-[12px] font-semibold text-surface-700 mb-1.5">
-                Phone number
-              </label>
-              <div className="relative">
-                <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-surface-400 pointer-events-none" />
+          {/* ─── OTP Mode ─────────────────────────────────── */}
+          {mode === 'otp' && !otpSent && (
+            <form onSubmit={(e) => { e.preventDefault(); handleSendOtp(); }} className="space-y-4" noValidate>
+              <div>
+                <label htmlFor="clinic" className="block text-[12px] font-semibold text-surface-700 mb-1.5">Clinic ID</label>
                 <input
-                  id="phone"
-                  type="tel"
-                  autoComplete="tel"
-                  placeholder="+91 98000 00101"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  aria-invalid={!!error}
+                  id="clinic"
+                  type="text"
+                  autoComplete="organization"
+                  placeholder="e.g. nova"
+                  value={clinic}
+                  onChange={(e) => setClinic(e.target.value)}
                   required
-                  className="w-full pl-10 pr-3.5 py-2.5 text-[13px] font-medium bg-surface-50/50 border border-surface-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 focus:bg-white transition-all placeholder:text-surface-400"
+                  className="w-full px-3.5 py-2.5 text-[13px] font-medium bg-surface-50/50 border border-surface-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 focus:bg-white transition-all placeholder:text-surface-400"
                 />
               </div>
-            </div>
 
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label htmlFor="password" className="block text-[12px] font-semibold text-surface-700">
-                  Password
-                </label>
-                <span className="text-[11px] text-surface-400">demo1234</span>
+              <div>
+                <label htmlFor="phone" className="block text-[12px] font-semibold text-surface-700 mb-1.5">Phone number</label>
+                <div className="relative">
+                  <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-surface-400 pointer-events-none" />
+                  <input
+                    id="phone"
+                    type="tel"
+                    autoComplete="tel"
+                    placeholder="+91 98000 00101"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    required
+                    className="w-full pl-10 pr-3.5 py-2.5 text-[13px] font-medium bg-surface-50/50 border border-surface-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 focus:bg-white transition-all placeholder:text-surface-400"
+                  />
+                </div>
               </div>
-              <div className="relative">
-                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-surface-400 pointer-events-none" />
+
+              {error && (
+                <div role="alert" className="flex items-start gap-2.5 p-3.5 rounded-xl bg-danger-50 border border-danger-200">
+                  <AlertCircle className="w-4 h-4 text-danger-600 mt-0.5 shrink-0" />
+                  <p className="text-[12px] font-medium text-danger-700 leading-relaxed">{error}</p>
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={otpSending || !clinic || !phone}
+                className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-primary-600 hover:bg-primary-700 text-white text-[13px] font-semibold py-3 shadow-healthcare hover:shadow-healthcare-lg transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40 disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
+              >
+                {otpSending ? <Loader2 className="w-4 h-4 animate-spin" /> : <MessageSquare className="w-4 h-4" />}
+                {otpSending ? 'Sending...' : 'Send verification code'}
+              </button>
+            </form>
+          )}
+
+          {/* ─── OTP Verification ────────────────────────── */}
+          {mode === 'otp' && otpSent && (
+            <form onSubmit={handleVerifyOtp} className="space-y-4" noValidate>
+              <button
+                type="button"
+                onClick={resetOtpFlow}
+                className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-surface-500 hover:text-primary-600 transition-colors"
+              >
+                <ArrowLeft className="w-3.5 h-3.5" /> Change phone number
+              </button>
+
+              <div>
+                <label htmlFor="otp" className="block text-[12px] font-semibold text-surface-700 mb-1.5">Verification code</label>
+                <div className="relative">
+                  <KeyRound className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-surface-400 pointer-events-none" />
+                  <input
+                    id="otp"
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    placeholder="000000"
+                    maxLength={6}
+                    value={otp}
+                    onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
+                    autoFocus
+                    className="w-full pl-10 pr-3.5 py-2.5 text-[18px] font-mono tracking-[0.3em] text-center bg-surface-50/50 border border-surface-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 focus:bg-white transition-all placeholder:text-surface-300 placeholder:tracking-[0.3em]"
+                  />
+                </div>
+                {otpExpiry > 0 && (
+                  <div className="mt-2 flex items-center gap-1.5 text-[11px] text-surface-400">
+                    <Timer className="w-3 h-3" /> Code expires in {Math.floor(otpExpiry / 60)}:{String(otpExpiry % 60).padStart(2, '0')}
+                  </div>
+                )}
+              </div>
+
+              {error && (
+                <div role="alert" className="flex items-start gap-2.5 p-3.5 rounded-xl bg-danger-50 border border-danger-200">
+                  <AlertCircle className="w-4 h-4 text-danger-600 mt-0.5 shrink-0" />
+                  <p className="text-[12px] font-medium text-danger-700 leading-relaxed">{error}</p>
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={otpVerifying || otp.length !== 6}
+                className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-primary-600 hover:bg-primary-700 text-white text-[13px] font-semibold py-3 shadow-healthcare hover:shadow-healthcare-lg transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40 disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
+              >
+                {otpVerifying && <Loader2 className="w-4 h-4 animate-spin" />}
+                {otpVerifying ? 'Verifying...' : 'Verify & sign in'}
+              </button>
+
+              <button
+                type="button"
+                onClick={handleSendOtp}
+                disabled={otpSending}
+                className="w-full text-center text-[12px] font-semibold text-primary-600 hover:text-primary-700 transition-colors"
+              >
+                {otpSending ? 'Resending...' : 'Resend OTP'}
+              </button>
+            </form>
+          )}
+
+          {/* ─── Password Mode ───────────────────────────── */}
+          {mode === 'password' && (
+            <form onSubmit={handlePasswordLogin} className="space-y-4" noValidate>
+              <div>
+                <label htmlFor="clinic-pw" className="block text-[12px] font-semibold text-surface-700 mb-1.5">Clinic ID</label>
                 <input
-                  id="password"
-                  type={showPassword ? 'text' : 'password'}
-                  autoComplete="current-password"
-                  placeholder="Your password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  aria-invalid={!!error}
+                  id="clinic-pw"
+                  type="text"
+                  autoComplete="organization"
+                  placeholder="e.g. nova"
+                  value={clinic}
+                  onChange={(e) => setClinic(e.target.value)}
                   required
-                  className="w-full pl-10 pr-11 py-2.5 text-[13px] font-medium bg-surface-50/50 border border-surface-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 focus:bg-white transition-all placeholder:text-surface-400"
+                  className="w-full px-3.5 py-2.5 text-[13px] font-medium bg-surface-50/50 border border-surface-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 focus:bg-white transition-all placeholder:text-surface-400"
                 />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((v) => !v)}
-                  aria-label={showPassword ? 'Hide password' : 'Show password'}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-surface-400 hover:text-surface-600 transition-colors rounded-lg hover:bg-surface-100"
-                >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
               </div>
-            </div>
 
-            {error && (
-              <div role="alert" className="flex items-start gap-2.5 p-3.5 rounded-xl bg-danger-50 border border-danger-200">
-                <AlertCircle className="w-4 h-4 text-danger-600 mt-0.5 shrink-0" />
-                <p className="text-[12px] font-medium text-danger-700 leading-relaxed">{error}</p>
+              <div>
+                <label htmlFor="phone-pw" className="block text-[12px] font-semibold text-surface-700 mb-1.5">Phone number</label>
+                <div className="relative">
+                  <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-surface-400 pointer-events-none" />
+                  <input
+                    id="phone-pw"
+                    type="tel"
+                    autoComplete="tel"
+                    placeholder="+91 98000 00101"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    required
+                    className="w-full pl-10 pr-3.5 py-2.5 text-[13px] font-medium bg-surface-50/50 border border-surface-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 focus:bg-white transition-all placeholder:text-surface-400"
+                  />
+                </div>
               </div>
-            )}
 
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label htmlFor="password" className="block text-[12px] font-semibold text-surface-700">Password</label>
+                  <span className="text-[11px] text-surface-400">demo: demo1234</span>
+                </div>
+                <div className="relative">
+                  <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-surface-400 pointer-events-none" />
+                  <input
+                    id="password"
+                    type={showPassword ? 'text' : 'password'}
+                    autoComplete="current-password"
+                    placeholder="Your password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    className="w-full pl-10 pr-11 py-2.5 text-[13px] font-medium bg-surface-50/50 border border-surface-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 focus:bg-white transition-all placeholder:text-surface-400"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((v) => !v)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-surface-400 hover:text-surface-600 transition-colors rounded-lg hover:bg-surface-100"
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              {error && (
+                <div role="alert" className="flex items-start gap-2.5 p-3.5 rounded-xl bg-danger-50 border border-danger-200">
+                  <AlertCircle className="w-4 h-4 text-danger-600 mt-0.5 shrink-0" />
+                  <p className="text-[12px] font-medium text-danger-700 leading-relaxed">{error}</p>
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={pending || !clinic || !phone || !password}
+                className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-primary-600 hover:bg-primary-700 text-white text-[13px] font-semibold py-3 shadow-healthcare hover:shadow-healthcare-lg transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40 disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
+              >
+                {pending && <Loader2 className="w-4 h-4 animate-spin" />}
+                {pending ? 'Signing in...' : 'Sign in'}
+              </button>
+            </form>
+          )}
+
+          {/* Mode Toggle */}
+          <div className="mt-4 text-center">
             <button
-              type="submit"
-              disabled={pending || !clinic || !phone || !password}
-              className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-primary-600 hover:bg-primary-700 text-white text-[13px] font-semibold py-3 shadow-healthcare hover:shadow-healthcare-lg transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40 disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
+              type="button"
+              onClick={() => {
+                setMode(mode === 'otp' ? 'password' : 'otp')
+                setError(null)
+                setOtpSent(false)
+                setOtp('')
+              }}
+              className="text-[12px] font-semibold text-primary-600 hover:text-primary-700 transition-colors"
             >
-              {pending && <Loader2 className="w-4 h-4 animate-spin" />}
-              {pending ? 'Signing in…' : 'Sign in'}
+              {mode === 'otp' ? 'Use password instead' : 'Sign in with OTP'}
             </button>
-          </form>
+          </div>
 
-          {/* Quick Demo Access */}
+          {/* Demo Accounts */}
           <div className="mt-8 pt-6 border-t border-surface-100">
             <p className="text-[11px] font-bold uppercase tracking-wider text-surface-400 mb-3">
               Demo accounts · Nova Children's Clinic
             </p>
-
             <div className="grid grid-cols-3 gap-2">
               {demoAccounts.map((a) => (
                 <button
@@ -252,7 +471,7 @@ export default function Login() {
             </p>
           </div>
 
-          {/* Compliance trust banner */}
+          {/* Compliance Footer */}
           <div className="mt-6 pt-4 border-t border-surface-100/60 flex items-center justify-center gap-4 text-[10px] font-medium text-surface-400">
             <span className="inline-flex items-center gap-1">
               <CheckCircle2 className="w-3 h-3 text-success-600" /> ABDM Ready

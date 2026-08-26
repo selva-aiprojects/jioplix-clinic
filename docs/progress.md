@@ -11,12 +11,14 @@ Update this file after every work session.
 |---|---|
 | Product | Jioplix — AI-Powered Clinic Operating System |
 | PRD Version | 4.0 (Target: Q4 2026) |
-| Release Scope | Release 1 (Clinic Core) + Release 1.1 (Revenue Add-ons) |
+| Release Scope | Release 1 (Clinic Core) + Release 1.1 (Revenue Add-ons) + Release 1.2 (Notifications + Payments) |
 | Stack | Monorepo (npm workspaces): `apps/web` React 19 + TS + Vite 8 + Tailwind 4 · `apps/api` NestJS 11 · `packages/db` migrator/seeder CLI · `packages/contracts` shared zod enums/schemas/permissions |
 | Data | PostgreSQL 17, Aiven cloud · Drizzle ORM in api · schema-per-tenant |
 | Auth | JWT access 15m + rotating refresh 7d, scrypt passwords, RBAC guards; demo password `demo1234` |
 | Verification | `npm run smoke` — 49 checks, all passing · lint (oxlint) + tsc per workspace |
 | Demo tenants | sunrise (starter/Dental) · nova (professional/Pediatric) · apex (clinic/Dermatology) · medicore (enterprise/General) |
+| Payments | Razorpay gateway interface (pluggable, stub mode for dev); pending live keys from user |
+| Notifications | SMTP email service (nodemailer) with stub fallback; console-fallback SMS stub |
 
 ---
 
@@ -134,6 +136,14 @@ Update this file after every work session.
 - [ ] Patient-friendly summary + language selection — FR-5.3
 - [ ] GST invoice detail view — Epic 7
 
+### Tenant Lifecycle (pending)
+- [ ] Razorpay live integration (awaiting credentials from user)
+- [ ] Subscription upgrade/downgrade UI flow
+- [ ] Tenant self-service renewal portal
+- [ ] Email delivery confirmation tracking
+- [ ] SMS delivery via MSG91/Twilio (currently console stub)
+- [ ] Password reset flow for platform admin users
+
 ---
 
 ## 7. Session Log
@@ -153,5 +163,6 @@ Update this file after every work session.
 | 2026-08-21 | **Brand realignment to Jioplix Design System v1.0.** User supplied logo.png (577x242 wordmark), favicon.png, hero.png and a draft theme CSS. Rewrote `index.css` as single-source system: Tailwind `@theme` tokens remapped to brand (primary=Jioplix Blue #1265e8 ramp, accent=Teal #08bfa9, navy ink surface-800/900 #10234a/#071f5c, status hues success #16a36a / danger #e5484d / info #1688f8), brand gradient utilities (blue-lightblue-teal) + navy-tinted shadows, deduped specialty theme block (Epic 12 clinic types) kept once. Dropped dead vanilla component CSS (.btn/.card/.sidebar-item/global th/td etc.) that nothing referenced and which would have clobbered Tailwind tables. Wired assets: favicon.png in index.html (+theme-color #071f5c, old favicon.svg removed), logo.png in Sidebar (wordmark + collapsed favicon mark) and Login (white chip on gradient panel, mobile header), favicon.png in auth Splash, hero.png framed above login form. All existing pages inherit rebrand via tokens - zero component churn. Web tsc -b exit 0, oxlint clean, build green (hero bundled). |
 | 2026-08-25 | **Gap analysis audit + reconciliation.** Full source-code review against `gap_analysis_jioplix_vs_healthplix.md`. Discovered nearly all Sprint 1 & 2 recommended fixes were already implemented in prior sessions: R-01 (live Dashboard AI insights), R-02 (no duplicate StatCard), R-03 (NotificationPanel wired to bell), R-04 (Drug Master autocomplete), R-05 (RxTemplatePicker), R-06 (tabbed SOAP), R-07 (vitals trend charts), R-08 (ICD-10 autocomplete), R-09 (Skeleton components), R-10 (EmptyState), R-11 (Week calendar). Updated gap analysis with current scorecard, marked all resolved gaps, identified remaining Sprint 3-4 items. Updated progress.md backlog to reflect actual state. **Demo status: READY.** |
 | 2026-08-25 | **Sprint 3 + Sprint 4 (Release 1.2 + 1.3) shipped.** All 14 gap items implemented: R-12 AI Jobs wired to OpenAI LLM (gpt-4o-mini, keyword fallback); R-14 react-i18next infrastructure (14 Indian languages, locale files, LanguageSwitcher component); R-15 Campaign Builder UI (full page with template library + automation rules); R-16 Online Booking page (link generator, QR placeholder, config); R-17 PWA (manifest.json, service worker with cache-first static + network-first API, offline.html, OfflineBanner); R-19 PDF Export (patient summary, GST invoice, prescription PDFs via jsPDF + jspdf-autotable, wired to PatientProfile/Billing/Consultation); R-20 ABDM FHIR (7 API endpoints, FHIR R4 formatters, integration page); R-21 Dashboard date range filtering (7 presets + custom + revenue trend chart); R-22 Analytics real API data (daily-revenue/patients endpoints, period selector, AreaChart/BarChart/PieChart); R-23 Teleconsultation module (API + UI + DB schema); R-24 Onboarding wizard (6-step wizard, gated launch, API endpoints). All new backend modules registered in AppModule. All routes + sidebar nav wired. API builds clean. Web builds clean. Smoke tests: **49/49 all passing.** |
+| 2026-08-26 | **Tenant Lifecycle + Notifications + Payment Gateway.** Full session building B2B tenant management infrastructure. (1) Registration system: `POST /auth/register` creates tenant + admin user + 14-day trial subscription + welcome invoice; 3-step wizard UI (`Register.tsx` — Clinic → Admin → Plan → Success); slug uniqueness validation; hashed admin passwords (scrypt). (2) Subscription management: `GET /subscriptions/current`, `GET /subscriptions/history`, `GET /subscriptions/invoices`, `POST /subscriptions/renew`; grace period auto-check on every TenantGuard request with configurable suspension window (7 days default); overdue marking after grace expiry. (3) Platform admin dashboard: `POST /platform/login` + `GET /platform/tenants` + `POST /platform/tenants/action` (suspend/reactivate) + `GET /platform/dashboard` (summary stats); auto-creates default admin (`admin@jioplix.com` / `admin1234`) on API startup via `PlatformAdminService.onModuleInit`; full UI at `/admin` with login + tenant table + action dropdowns. (4) Notification service: `MailerService` (nodemailer) with real SMTP transport when configured, console-fallback for dev; templated emails for welcome, suspension, OTP; wired into registration (welcome email) and OTP service (SMS stub via console). `MailerModule` registered as global in AppModule. (5) Payment gateway: pluggable `PaymentGateway` interface; `RazorpayProvider` with real Razorpay API calls when keys present, stub mode for dev; `PaymentService` + `PaymentController` with create-order + verify endpoints; web `api.ts` exposes `createPaymentOrder` + `verifyPayment` + `getCurrentSubscription` + `renewSubscription`. (6) Suspended page: `Suspended.tsx` — branded page with contact-sales CTAs, route at `/suspended`, `TENANT_SUSPENDED` error code handled in login. (7) Onboarding wired to DB: new migration `0008_onboarding.sql` (tenant_onboarding table), full CRUD in `OnboardingService` (clinic profile, doctor/receptionist invite, addon toggle). (8) DB migrations: `0006_subscriptions.sql` (subscription + invoice tables), `0007_platform_auth.sql` (admin password_hash), `0008_onboarding.sql`. (9) Shared contracts updated: `registerSchema`, `platformLoginSchema`, `tenantActionSchema`, `PlanInfo`, `SubscriptionInfo`, `TenantInvoice`, new error codes. All TypeScript compilation clean for both api and web workspaces. |
 
 Refer: gap_analysis_jioplix_vs_healthplix.md

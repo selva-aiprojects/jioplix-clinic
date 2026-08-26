@@ -7,6 +7,7 @@ import {
   Shield, Link2, Send, Clock, Smartphone,
 } from 'lucide-react'
 import BrandLogo from '../components/BrandLogo'
+import { RAZORPAY_PAYMENT_LINK } from '../lib/api'
 
 const capabilities = [
   { icon: CalendarDays, title: 'Fill more appointment slots', text: 'Smart scheduling, queue visibility, and faster front-desk handoffs keep every visit moving.' },
@@ -126,6 +127,7 @@ export default function Landing() {
         <BrandLogo variant="pure" size="3xl" className="origin-left scale-[1.35] sm:scale-100" />
         <div className="flex items-center gap-3">
           <Link to="/login" className="hidden px-3 py-2 text-[13px] font-semibold text-surface-600 hover:text-primary-700 sm:block">Sign in</Link>
+          <Link to="/register" className="hidden px-3 py-2 text-[13px] font-semibold text-surface-600 hover:text-primary-700 sm:block">Register clinic</Link>
           <Link to="/login" className="inline-flex items-center gap-2 rounded-xl bg-primary-600 px-4 py-2.5 text-[13px] font-bold text-white shadow-healthcare hover:bg-primary-700">
             See the demo <ArrowRight className="h-4 w-4" />
           </Link>
@@ -145,8 +147,8 @@ export default function Landing() {
             Jioplix brings your hospital front desk, clinical teams, pharmacy, lab, billing, and leadership onto one calm, intelligent workspace.
           </p>
           <div className="mt-8 flex flex-wrap items-center gap-3">
-            <Link to="/login" className="inline-flex items-center gap-2 rounded-xl bg-primary-600 px-5 py-3 text-[14px] font-bold text-white shadow-healthcare hover:bg-primary-700">
-              Explore the live demo <ArrowRight className="h-4 w-4" />
+            <Link to="/register" className="inline-flex items-center gap-2 rounded-xl bg-primary-600 px-5 py-3 text-[14px] font-bold text-white shadow-healthcare hover:bg-primary-700">
+              Register your clinic <ArrowRight className="h-4 w-4" />
             </Link>
             <a href="#new-features" className="inline-flex items-center gap-1 rounded-xl px-4 py-3 text-[14px] font-bold text-surface-600 hover:bg-white">What&apos;s new <ChevronRight className="h-4 w-4" /></a>
           </div>
@@ -618,6 +620,14 @@ export default function Landing() {
               <Link to="/login" className={`mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-[13px] font-bold ${plan.featured ? 'bg-white text-primary-700 hover:bg-primary-50' : 'bg-primary-600 text-white hover:bg-primary-700'}`}>
                 Get started <ArrowRight className="h-4 w-4" />
               </Link>
+              <a
+                href={RAZORPAY_PAYMENT_LINK}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={`mt-2 inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-[12px] font-semibold border ${plan.featured ? 'border-white/20 text-white/80 hover:bg-white/10' : 'border-surface-200 text-surface-500 hover:border-primary-200 hover:bg-primary-50/40'}`}
+              >
+                Pay now via Razorpay
+              </a>
             </article>
           ))}
         </div>

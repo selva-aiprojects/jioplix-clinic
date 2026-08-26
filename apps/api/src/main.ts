@@ -5,6 +5,9 @@ import { NestFactory } from '@nestjs/core'
 import { AppModule } from './app.module.js'
 import { ErrorFilter } from './common/error.filter.js'
 import { API_PREFIX } from '@jioplix/contracts'
+import { Pool } from 'pg'
+import { pgConnectionOptions } from '@jioplix/db'
+import { initGlobal } from '@jioplix/db'
 
 function loadRootEnv(): void {
   let dir = process.cwd()
@@ -23,6 +26,15 @@ async function bootstrap(): Promise<void> {
 
   if (!process.env.JWT_SECRET) {
     throw new Error('JWT_SECRET is required — set it in .env or the environment')
+  }
+
+  // Run global migrations (creates subscription tables if missing)
+  const pool = new Pool(pgConnectionOptions(process.env.DATABASE_URL))
+  try {
+    const applied = await initGlobal(pool)
+    if (applied.length) console.log(`[DB] Applied ${applied.length} global migration(s): ${applied.join(', ')}`)
+  } finally {
+    await pool.end()
   }
 
   const app = await NestFactory.create(AppModule)

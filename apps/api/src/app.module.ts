@@ -9,6 +9,7 @@ import { AppointmentsController } from './appointments/appointments.controller.j
 import { AppointmentsService } from './appointments/appointments.service.js'
 import { AuthController } from './auth/auth.controller.js'
 import { AuthService } from './auth/auth.service.js'
+import { OtpService } from './auth/otp.service.js'
 import { JwtAuthGuard } from './auth/jwt-auth.guard.js'
 import { PermissionsGuard } from './auth/permissions.guard.js'
 import { EncountersModule } from './encounters/encounters.module.js'
@@ -35,6 +36,11 @@ import { OnboardingModule } from './onboarding/onboarding.module.js'
 import { AbdmModule } from './abdm/abdm.module.js'
 import { BookingModule } from './booking/booking.module.js'
 import { WhatsAppModule } from './whatsapp/whatsapp.module.js'
+import { RegistrationModule } from './registration/registration.module.js'
+import { SubscriptionModule } from './subscription/subscription.module.js'
+import { PlatformAdminModule } from './platform-admin/platform-admin.module.js'
+import { MailerModule } from './mailer/mailer.module.js'
+import { PaymentModule } from './payment/payment.module.js'
 
 @Module({
   controllers: [
@@ -52,6 +58,7 @@ import { WhatsAppModule } from './whatsapp/whatsapp.module.js'
     PatientsService,
     AppointmentsService,
     AuthService,
+    OtpService,
     InventoryService,
     LabsService,
     ProceduresService,
@@ -77,6 +84,11 @@ import { WhatsAppModule } from './whatsapp/whatsapp.module.js'
     WhatsAppModule,
     BookingModule,
     OnboardingModule,
+    RegistrationModule,
+    SubscriptionModule,
+    PlatformAdminModule,
+    MailerModule,
+    PaymentModule,
   ],
 })
 export class AppModule {}

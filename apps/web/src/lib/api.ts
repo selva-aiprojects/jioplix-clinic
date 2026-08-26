@@ -871,6 +871,124 @@ export async function listVitalsHistory(patientId: string): Promise<VitalsSnapsh
   return api<VitalsSnapshot[]>(`/patients/${patientId}/vitals`)
 }
 
+/* ============================ Registration ============================ */
+
+export interface PlanOption {
+  code: string
+  name: string
+  monthlyPricePaise: number
+  addons: string[]
+}
+
+export interface RegistrationResult {
+  tenantId: string
+  slug: string
+  planCode: string
+  message: string
+}
+
+export async function listPlans(): Promise<PlanOption[]> {
+  return api<PlanOption[]>('/auth/plans', { auth: false })
+}
+
+export async function registerClinic(data: {
+  clinicName: string
+  slug: string
+  clinicType?: string
+  planCode?: string
+  adminName: string
+  phone: string
+  email: string
+  password: string
+}): Promise<RegistrationResult> {
+  return api<RegistrationResult>('/auth/register', { method: 'POST', body: data, auth: false })
+}
+
+/* ============================ Subscriptions ============================ */
+
+export interface TenantSubscription {
+  id: string
+  tenantId: string
+  planCode: string
+  status: string
+  currentPeriodStart: string
+  currentPeriodEnd: string
+  trialEnd: string | null
+}
+
+export async function getCurrentSubscription(): Promise<TenantSubscription | null> {
+  return api<TenantSubscription | null>('/subscriptions/current')
+}
+
+export async function renewSubscription(planCode?: string): Promise<TenantSubscription> {
+  return api<TenantSubscription>('/subscriptions/renew', { method: 'POST', body: { planCode } })
+}
+
+/* ============================ Payments (Razorpay) ============================ */
+
+export const RAZORPAY_PAYMENT_LINK = 'https://razorpay.me/@balakrishnanselvakumar'
+
+export async function createPaymentOrder(amountPaise: number, planCode: string): Promise<{ orderId: string; amount: number; currency: string }> {
+  return api('/payments/create-order', { method: 'POST', body: { amountPaise, planCode } })
+}
+
+export async function verifyPayment(data: {
+  razorpayOrderId: string
+  razorpayPaymentId: string
+  razorpaySignature: string
+}): Promise<{ verified: boolean; paymentId: string }> {
+  return api('/payments/verify', { method: 'POST', body: data })
+}
+
+/* ============================ Platform Admin ============================ */
+
+export interface PlatformAdminUser {
+  userId: string
+  email: string
+  fullName: string
+  role: string
+}
+
+export interface PlatformTenant {
+  id: string
+  name: string
+  slug: string
+  status: string
+  planCode: string
+  clinicType: string
+  createdAt: string
+  subscription: { status: string; planCode: string; periodEnd: string } | null
+}
+
+export interface PlatformDashboard {
+  totalTenants: number
+  activeTenants: number
+  suspendedTenants: number
+  trialingTenants: number
+  revenue: { totalPending: number; totalPaid: number }
+}
+
+export async function platformLogin(email: string, password: string): Promise<{ accessToken: string; user: PlatformAdminUser }> {
+  const data = await api<{ accessToken: string; user: PlatformAdminUser }>('/platform/login', {
+    method: 'POST',
+    body: { email, password },
+    auth: false,
+  })
+  return data
+}
+
+export async function platformListTenants(): Promise<PlatformTenant[]> {
+  return api<PlatformTenant[]>('/platform/tenants')
+}
+
+export async function platformTenantAction(tenantId: string, action: 'suspend' | 'unsuspend' | 'offboard'): Promise<{ id: string; status: string }> {
+  return api('/platform/tenants/action', { method: 'POST', body: { tenantId, action } })
+}
+
+export async function platformDashboard(): Promise<PlatformDashboard> {
+  return api<PlatformDashboard>('/platform/dashboard')
+}
+
 /* ============================ Analytics ============================ */
 
 export interface AnalyticsSummary {
