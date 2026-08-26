@@ -214,11 +214,11 @@ export class PlatformAdminService implements OnModuleInit {
   // ─── Platform Settings ───
 
   async getSettings(): Promise<Record<string, unknown>> {
-    const { rows } = await this.db.pool.query<{ key: string; value: unknown }>(
+    const { rows } = await this.db.pool.query<{ key: string; value: { value: unknown } }>(
       `SELECT key, value FROM public.platform_settings`,
     )
     const settings: Record<string, unknown> = {}
-    for (const r of rows) settings[r.key] = r.value
+    for (const r of rows) settings[r.key] = r.value?.value ?? r.value
     return settings
   }
 
@@ -226,9 +226,9 @@ export class PlatformAdminService implements OnModuleInit {
     for (const [key, value] of Object.entries(input)) {
       await this.db.pool.query(
         `INSERT INTO public.platform_settings (key, value, updated_at)
-         VALUES ($1, $2, now())
-         ON CONFLICT (key) DO UPDATE SET value = $2, updated_at = now()`,
-        [key, JSON.stringify(value)],
+         VALUES ($1, $2::jsonb, now())
+         ON CONFLICT (key) DO UPDATE SET value = $2::jsonb, updated_at = now()`,
+        [key, JSON.stringify({ value })],
       )
     }
     return this.getSettings()

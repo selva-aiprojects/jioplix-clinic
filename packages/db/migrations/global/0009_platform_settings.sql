@@ -7,11 +7,11 @@ CREATE TABLE IF NOT EXISTS public.platform_settings (
 
 -- Seed default settings
 INSERT INTO public.platform_settings (key, value) VALUES
-  ('payment_enabled', to_jsonb(true)),
-  ('registration_enabled', to_jsonb(true)),
-  ('trial_days', to_jsonb(14)),
-  ('grace_period_days', to_jsonb(7)),
-  ('platform_name', to_jsonb('Jioplix Clinic OS')),
-  ('support_email', to_jsonb('sales@jioplix.com')),
-  ('support_phone', to_jsonb('+91 1800-123-4567'))
+  ('payment_enabled', '{"value": true}'::jsonb),
+  ('registration_enabled', '{"value": true}'::jsonb),
+  ('trial_days', '{"value": 14}'::jsonb),
+  ('grace_period_days', '{"value": 7}'::jsonb),
+  ('platform_name', '{"value": "Jioplix Clinic OS"}'::jsonb),
+  ('support_email', '{"value": "sales@jioplix.com"}'::jsonb),
+  ('support_phone', '{"value": "+91 1800-123-4567"}'::jsonb)
 ON CONFLICT (key) DO NOTHING;
