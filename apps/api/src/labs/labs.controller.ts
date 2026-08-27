@@ -21,7 +21,9 @@ import {
 import { LabsService } from './labs.service.js'
 import { TenantGuard } from '../tenancy/tenant.guard.js'
 import { CurrentTenant } from '../tenancy/current-tenant.decorator.js'
+import { CurrentUser } from '../auth/current-user.decorator.js'
 import type { TenantContext } from '../tenancy/tenant.guard.js'
+import type { AuthContext } from '@jioplix/contracts'
 import { RequirePermissions } from '../auth/auth.decorators.js'
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
@@ -77,13 +79,14 @@ export class LabsController {
   @RequirePermissions('lab_orders:update')
   async saveResults(
     @CurrentTenant() tenant: TenantContext,
+    @CurrentUser() user: AuthContext,
     @Param('id') id: string,
     @Body() body: unknown,
   ) {
     const parsed = labResultsUpdateSchema.safeParse(body)
     if (!parsed.success) throw new BadRequestException('VALIDATION_FAILED')
     return {
-      data: await this.labs.saveResults(tenant.schemaName, id, parsed.data.results, parsed.data.complete),
+      data: await this.labs.saveResults(tenant.schemaName, id, parsed.data.results, parsed.data.complete, user.userId),
     }
   }
 }

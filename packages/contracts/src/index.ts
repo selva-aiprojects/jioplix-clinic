@@ -274,6 +274,7 @@ export const invoiceCreateSchema = z.object({
   encounterId: z.string().uuid().optional(),
   appointmentId: z.string().uuid().optional(),
   patientId: z.string().uuid(),
+  status: z.enum(['draft', 'issued', 'partial', 'paid', 'void', 'refunded']).default('issued'),
   lines: z.array(z.object({
     itemType: z.enum(['consultation', 'procedure', 'pharmacy', 'lab', 'other']),
     itemName: z.string().min(1).max(200),

@@ -1,8 +1,9 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common'
-import { asc, eq, ilike, inArray, or, sql } from 'drizzle-orm'
+import { and, asc, eq, ilike, inArray, or, sql } from 'drizzle-orm'
 import type { DispenseQueueItem } from '@jioplix/contracts'
 import { newId } from '@jioplix/contracts'
 import { DbService, type TenantTx } from '../db/db.service.js'
+import { BillingService } from '../billing/billing.service.js'
 import {
   inventoryItems,
   patients,
@@ -10,11 +11,13 @@ import {
   prescriptions,
   stockMovements,
   users,
+  encounters,
+  invoices,
 } from '../db/schema/tenant.js'
 
 @Injectable()
 export class PharmacyService {
-  constructor(private readonly db: DbService) {}
+  constructor(private readonly db: DbService, private readonly billing: BillingService) {}
 
   async dispenseQueue(schemaName: string): Promise<DispenseQueueItem[]> {
     return this.db.withTenant(schemaName, async (db) => {
@@ -148,6 +151,41 @@ export class PharmacyService {
           .update(prescriptions)
           .set({ status: 'dispensed', updatedAt: new Date() })
           .where(eq(prescriptions.id, rx.id))
+
+        const [enc] = await tx
+          .select({ appointmentId: encounters.appointmentId })
+          .from(encounters)
+          .where(eq(encounters.id, rx.encounterId))
+          .limit(1)
+
+        const [existingDraft] = await tx
+          .select()
+          .from(invoices)
+          .where(and(eq(invoices.encounterId, rx.encounterId), eq(invoices.status, 'draft')))
+          .limit(1)
+
+        if (!existingDraft) {
+          await this.billing.createInvoice(
+            schemaName,
+            {
+              encounterId: rx.encounterId,
+              appointmentId: enc?.appointmentId ?? undefined,
+              patientId: rx.patientId,
+              status: 'draft',
+              lines: items.map((it) => ({
+                itemType: 'pharmacy',
+                itemName: it.drugName,
+                quantity: it.quantity ?? 1,
+                unitPricePaise: 0,
+                cgstRate: 0,
+                sgstRate: 0,
+                igstRate: 0,
+              })),
+              discountPaise: 0,
+            },
+            actorUserId,
+          )
+        }
 
         const [patient] = await tx
           .select({ firstName: patients.firstName, lastName: patients.lastName, dateOfBirth: patients.dateOfBirth, gender: patients.gender })

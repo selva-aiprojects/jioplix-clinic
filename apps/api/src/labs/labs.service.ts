@@ -9,13 +9,14 @@ import type {
 } from '@jioplix/contracts'
 import { newId } from '@jioplix/contracts'
 import { DbService } from '../db/db.service.js'
-import { labOrders, patients, users } from '../db/schema/tenant.js'
+import { BillingService } from '../billing/billing.service.js'
+import { labOrders, patients, users, encounters, invoices } from '../db/schema/tenant.js'
 
 type LabOrderRow = typeof labOrders.$inferSelect
 
 @Injectable()
 export class LabsService {
-  constructor(private readonly db: DbService) {}
+  constructor(private readonly db: DbService, private readonly billing: BillingService) {}
 
   async list(schemaName: string, filters: { date?: string; status?: string; patientId?: string }): Promise<LabOrder[]> {
     return this.db.withTenant(schemaName, async (db) => {
@@ -131,6 +132,7 @@ export class LabsService {
     orderId: string,
     results: LabResultEntry[],
     complete: boolean,
+    actorUserId: string,
   ): Promise<LabOrder> {
     return this.db.withTenant(schemaName, async (db) => {
       const [current] = await db.select().from(labOrders).where(eq(labOrders.id, orderId)).limit(1)
@@ -157,6 +159,43 @@ export class LabsService {
         })
         .where(eq(labOrders.id, orderId))
         .returning()
+
+      if (nextStatus === 'completed' && current.encounterId) {
+        const [enc] = await db
+          .select({ patientId: encounters.patientId, appointmentId: encounters.appointmentId })
+          .from(encounters)
+          .where(eq(encounters.id, current.encounterId))
+          .limit(1)
+
+        const [existingDraft] = await db
+          .select()
+          .from(invoices)
+          .where(and(eq(invoices.encounterId, current.encounterId), eq(invoices.status, 'draft')))
+          .limit(1)
+
+        if (!existingDraft && enc?.patientId) {
+          await this.billing.createInvoice(
+            schemaName,
+            {
+              encounterId: current.encounterId,
+              appointmentId: enc.appointmentId ?? undefined,
+              patientId: enc.patientId,
+              status: 'draft',
+              lines: (current.investigations ?? []).map((inv) => ({
+                itemType: 'lab',
+                itemName: inv.name,
+                quantity: 1,
+                unitPricePaise: 0,
+                cgstRate: 0,
+                sgstRate: 0,
+                igstRate: 0,
+              })),
+              discountPaise: 0,
+            },
+            actorUserId,
+          )
+        }
+      }
 
       const [patient] = await db
         .select({ firstName: patients.firstName, lastName: patients.lastName })

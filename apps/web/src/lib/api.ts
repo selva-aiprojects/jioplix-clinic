@@ -480,6 +480,7 @@ export async function createInvoice(data: {
   patientId: string
   encounterId?: string
   appointmentId?: string
+  status?: 'draft' | 'issued' | 'partial' | 'paid' | 'void' | 'refunded'
   lines: Array<{
     itemType: 'consultation' | 'procedure' | 'pharmacy' | 'lab' | 'other'
     itemName: string

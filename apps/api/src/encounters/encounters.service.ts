@@ -1,6 +1,7 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common'
 import { and, desc, eq, inArray, sql } from 'drizzle-orm'
 import { DbService, type TenantTx } from '../db/db.service.js'
+import { BillingService } from '../billing/billing.service.js'
 import { newId } from '@jioplix/contracts'
 import type {
   EncounterCreate,
@@ -15,6 +16,7 @@ import {
   patients,
   users,
   appointments,
+  invoices,
 } from '../db/schema/tenant.js'
 
 export interface EncounterView {
@@ -66,7 +68,7 @@ export interface DiagnosisView {
 
 @Injectable()
 export class EncountersService {
-  constructor(private readonly db: DbService) {}
+  constructor(private readonly db: DbService, private readonly billing: BillingService) {}
 
   async create(schemaName: string, createdBy: string, input: EncounterCreate) {
     return this.db.withTenant(schemaName, async (db) => {
@@ -319,6 +321,37 @@ export class EncountersService {
         .set({ isLocked: true, lockedAt: new Date(), lockedBy, updatedAt: new Date() })
         .where(eq(encounters.id, id))
         .returning()
+
+      const [existingDraft] = await db
+        .select()
+        .from(invoices)
+        .where(and(eq(invoices.encounterId, id), eq(invoices.status, 'draft')))
+        .limit(1)
+
+      if (!existingDraft) {
+        await this.billing.createInvoice(
+          schemaName,
+          {
+            encounterId: id,
+            appointmentId: current.appointmentId ?? undefined,
+            patientId: current.patientId,
+            status: 'draft',
+            lines: [
+              {
+                itemType: 'consultation',
+                itemName: 'Consultation Fee',
+                quantity: 1,
+                unitPricePaise: 0,
+                cgstRate: 0,
+                sgstRate: 0,
+                igstRate: 0,
+              },
+            ],
+            discountPaise: 0,
+          },
+          lockedBy,
+        )
+      }
 
       return { id: row.id, isLocked: row.isLocked, lockedAt: row.lockedAt?.toISOString() ?? null }
     })
