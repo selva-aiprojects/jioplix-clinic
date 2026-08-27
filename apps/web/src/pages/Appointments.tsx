@@ -13,6 +13,7 @@ import {
   createAppointment, listPatients, listDoctors, describeApiError,
 } from '../lib/api'
 import type { Appointment, Patient, DoctorOption } from '../lib/api'
+import { useAuth } from '../auth/useAuth'
 
 const doctors = ['All Doctors', 'Dr. Priya', 'Dr. Anand']
 
@@ -151,6 +152,10 @@ const inputCls = (invalid?: boolean) =>
 export default function Appointments() {
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
+  const { hasPermission } = useAuth()
+  const canCheckIn = hasPermission('appointments:update')
+  const canStartConsult = hasPermission('encounters:create')
+  const canVitals = hasPermission('vitals:create')
   const today = new Date().toISOString().slice(0, 10)
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [view, setView] = useState<'list' | 'calendar'>('list')
@@ -446,7 +451,7 @@ export default function Appointments() {
                         </td>
                         <td className="px-5 py-3 text-right">
                           <div className="flex items-center justify-end gap-1.5">
-                            {(appt.status === 'scheduled' || appt.status === 'confirmed' || appt.status === 'waiting') && (
+                            {(appt.status === 'scheduled' || appt.status === 'confirmed' || appt.status === 'waiting') && canCheckIn && (
                               <button
                                 disabled={busyId === appt.id}
                                 onClick={() => setStatus(appt, 'checked_in')}
@@ -455,7 +460,7 @@ export default function Appointments() {
                                 Check In
                               </button>
                             )}
-                            {appt.status === 'checked_in' && (
+                            {appt.status === 'checked_in' && canStartConsult && (
                               <button
                                 disabled={busyId === appt.id}
                                 onClick={() => startConsultation(appt)}
@@ -464,13 +469,23 @@ export default function Appointments() {
                                 Start Consultation
                               </button>
                             )}
-                            {appt.status === 'in_consultation' && (
+                            {appt.status === 'in_consultation' && canCheckIn && (
                               <button
                                 disabled={busyId === appt.id}
                                 onClick={() => setStatus(appt, 'completed')}
                                 className="px-3 py-1.5 rounded-lg bg-success-50 text-success-600 text-[12px] font-medium hover:bg-success-100 transition-colors disabled:opacity-50"
                               >
                                 Complete
+                              </button>
+                            )}
+                            {(appt.status === 'checked_in' || appt.status === 'in_consultation') && appt.encounterId && (
+                              <button
+                                disabled={busyId === appt.id}
+                                onClick={() => navigate(`/encounters/${appt.encounterId}`)}
+                                className="px-3 py-1.5 rounded-lg bg-info-50 text-info-600 text-[12px] font-medium hover:bg-info-100 transition-colors disabled:opacity-50"
+                              >
+                                <Activity className="w-3 h-3 inline mr-1" />
+                                {canVitals ? 'Record Vitals' : 'Open Chart'}
                               </button>
                             )}
                           </div>

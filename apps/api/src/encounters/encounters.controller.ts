@@ -9,6 +9,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common'
 import {
@@ -34,6 +35,13 @@ export class EncountersController {
     const parsed = encounterCreateSchema.safeParse(body)
     if (!parsed.success) throw new BadRequestException('VALIDATION_FAILED')
     return { data: await this.encounters.create(tenant.schemaName, parsed.data) }
+  }
+
+  @Get()
+  @RequirePermissions('encounters:read')
+  async list(@CurrentTenant() tenant: TenantContext, @Query('date') date?: string) {
+    if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new BadRequestException('VALIDATION_FAILED')
+    return { data: await this.encounters.listByDate(tenant.schemaName, date) }
   }
 
   @Get(':id')

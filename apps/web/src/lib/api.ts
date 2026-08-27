@@ -188,6 +188,7 @@ export interface Appointment {
   source: string
   status: string
   notes?: string
+  encounterId?: string
 }
 
 export interface QueueToken {
@@ -381,6 +382,24 @@ export interface PatientEncounterSummary {
 
 export async function listPatientEncounters(patientId: string): Promise<PatientEncounterSummary[]> {
   return api<PatientEncounterSummary[]>(`/patients/${patientId}/encounters`)
+}
+
+export interface DailyEncounterSummary {
+  id: string
+  patientId: string
+  patientName: string
+  doctorId: string
+  doctorName: string
+  encounterDate: string
+  chiefComplaint: string | null
+  isLocked: boolean
+  hasVitals: boolean
+  primaryDiagnoses: number
+  createdAt: string
+}
+
+export async function listEncountersByDate(date: string): Promise<DailyEncounterSummary[]> {
+  return api<DailyEncounterSummary[]>(`/encounters?date=${date}`)
 }
 
 export async function updateEncounter(id: string, data: {

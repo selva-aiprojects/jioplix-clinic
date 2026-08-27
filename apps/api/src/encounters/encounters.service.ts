@@ -367,4 +367,59 @@ export class EncountersService {
       }))
     })
   }
+
+  async listByDate(schemaName: string, date: string) {
+    return this.db.withTenant(schemaName, async (db) => {
+      const rows = await db
+        .select({
+          id: encounters.id,
+          patientId: encounters.patientId,
+          patientName: sql`${patients.firstName} || ' ' || ${patients.lastName}`.as<string>('patient_name'),
+          doctorId: encounters.doctorId,
+          doctorName: users.fullName,
+          encounterDate: encounters.encounterDate,
+          chiefComplaint: encounters.chiefComplaint,
+          isLocked: encounters.isLocked,
+          createdAt: encounters.createdAt,
+        })
+        .from(encounters)
+        .innerJoin(patients, eq(encounters.patientId, patients.id))
+        .innerJoin(users, eq(encounters.doctorId, users.id))
+        .where(eq(encounters.encounterDate, date))
+        .orderBy(desc(encounters.createdAt))
+        .limit(100)
+
+      if (rows.length === 0) return []
+
+      const ids = rows.map((r) => r.id)
+      const vitalsRows = await db
+        .select({ id: vitals.encounterId })
+        .from(vitals)
+        .where(inArray(vitals.encounterId, ids))
+      const hasVitals = new Set(vitalsRows.map((v) => v.id))
+      const diagRows = await db
+        .select({ encounterId: encounterDiagnoses.encounterId, type: encounterDiagnoses.type })
+        .from(encounterDiagnoses)
+        .where(inArray(encounterDiagnoses.encounterId, ids))
+      const primaryCount = new Map<string, number>()
+      for (const d of diagRows) {
+        if (d.type !== 'primary') continue
+        primaryCount.set(d.encounterId, (primaryCount.get(d.encounterId) ?? 0) + 1)
+      }
+
+      return rows.map((r) => ({
+        id: r.id,
+        patientId: r.patientId,
+        patientName: r.patientName,
+        doctorId: r.doctorId,
+        doctorName: r.doctorName ?? '',
+        encounterDate: r.encounterDate,
+        chiefComplaint: r.chiefComplaint,
+        isLocked: r.isLocked,
+        hasVitals: hasVitals.has(r.id),
+        primaryDiagnoses: primaryCount.get(r.id) ?? 0,
+        createdAt: r.createdAt.toISOString(),
+      }))
+    })
+  }
 }

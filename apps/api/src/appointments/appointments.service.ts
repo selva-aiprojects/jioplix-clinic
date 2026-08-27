@@ -8,7 +8,7 @@ import {
 import type { AppointmentCreate, AppointmentStatus, QueueStatus } from '@jioplix/contracts'
 import { newId } from '@jioplix/contracts'
 import { DbService, type TenantTx } from '../db/db.service.js'
-import { appointments, branches, patients, queueTokens, roles, userBranchRoles, users } from '../db/schema/tenant.js'
+import { appointments, branches, encounters, patients, queueTokens, roles, userBranchRoles, users } from '../db/schema/tenant.js'
 
 export interface DoctorView {
   id: string
@@ -27,6 +27,7 @@ export interface AppointmentView {
   source: string
   status: AppointmentStatus
   notes: string | null
+  encounterId: string | null
 }
 
 export interface QueueTokenView {
@@ -69,10 +70,12 @@ export class AppointmentsService {
           source: appointments.source,
           status: appointments.status,
           notes: appointments.notes,
+          encounterId: encounters.id,
         })
         .from(appointments)
         .innerJoin(patients, eq(appointments.patientId, patients.id))
         .innerJoin(users, eq(appointments.doctorId, users.id))
+        .leftJoin(encounters, eq(encounters.appointmentId, appointments.id))
         .where(and(...conditions))
         .orderBy(asc(appointments.scheduledAt))
 
@@ -87,6 +90,7 @@ export class AppointmentsService {
         source: r.source,
         status: r.status as AppointmentStatus,
         notes: r.notes,
+        encounterId: r.encounterId,
       }))
     })
   }
@@ -155,6 +159,7 @@ export class AppointmentsService {
         source: row.source,
         status: row.status as AppointmentStatus,
         notes: row.notes,
+        encounterId: null,
       }
     })
   }
@@ -206,6 +211,7 @@ export class AppointmentsService {
           source: current.source,
           status: next,
           notes: current.notes,
+          encounterId: null,
           ...(tokenNo !== null ? { tokenNo } : {}),
         }
       }),

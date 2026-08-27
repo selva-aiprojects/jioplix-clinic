@@ -24,6 +24,7 @@ import { recordVitalsSnapshot } from '../lib/vitalsHistory'
 import { getPrintLanguage, PRINT_LANGUAGES } from '../lib/printI18n'
 import { exportPrescriptionPdf } from '../lib/pdfExport'
 import { pushNotification } from '../lib/notifications'
+import { useAuth } from '../auth/useAuth'
 
 const genderLabel: Record<string, string> = { M: 'Male', F: 'Female', O: 'Other' }
 
@@ -59,6 +60,15 @@ const KEYWORD_RX: Array<{ kw: string[]; item: RxTemplateItem }> = [
 export default function Consultation() {
   const { id } = useParams()
   const encounterId = id
+  const { hasPermission } = useAuth()
+
+  const canUpdateSoap = hasPermission('encounters:update')
+  const canLock = hasPermission('encounters:lock')
+  const canVitals = hasPermission('vitals:create')
+  const canDiagnose = hasPermission('diagnoses:create')
+  const canCreateRx = hasPermission('prescriptions:create')
+  const canIssueRx = hasPermission('prescriptions:update')
+  const canAiJob = hasPermission('ai_jobs:create')
 
   const [encounter, setEncounter] = useState<Encounter | null>(null)
   const [patient, setPatient] = useState<Patient | null>(null)
@@ -423,12 +433,16 @@ export default function Consultation() {
               </span>
             ) : (
               <>
-                <Button variant="secondary" onClick={saveDraft} disabled={busy || !dirty}>
-                  <Save className="w-4 h-4" /> Save Draft
-                </Button>
-                <Button onClick={signAndClose} disabled={busy}>
-                  <CheckCircle2 className="w-4 h-4" /> Sign &amp; Close
-                </Button>
+                {canUpdateSoap && (
+                  <Button variant="secondary" onClick={saveDraft} disabled={busy || !dirty}>
+                    <Save className="w-4 h-4" /> Save Draft
+                  </Button>
+                )}
+                {canLock && (
+                  <Button onClick={signAndClose} disabled={busy || !canUpdateSoap}>
+                    <CheckCircle2 className="w-4 h-4" /> Sign &amp; Close
+                  </Button>
+                )}
               </>
             )}
           </>
@@ -540,31 +554,31 @@ export default function Consultation() {
               <div className="bg-white rounded-2xl border border-surface-100 shadow-healthcare p-5 space-y-4">
                 <div>
                   <label className="text-[13px] font-semibold text-surface-700 block mb-2">Chief Complaint</label>
-                  <textarea value={chiefComplaint} disabled={locked} onChange={e => { setChiefComplaint(e.target.value); setDirty(true) }} placeholder="Presenting complaint and duration…" className={`${field} h-20`} />
+                  <textarea value={chiefComplaint} disabled={!canUpdateSoap || locked} onChange={e => { setChiefComplaint(e.target.value); setDirty(true) }} placeholder="Presenting complaint and duration…" className={`${field} h-20`} />
                 </div>
                 <div>
                   <label className="text-[13px] font-semibold text-surface-700 block mb-2">History of Present Illness</label>
-                  <textarea value={hpi} disabled={locked} onChange={e => { setHpi(e.target.value); setDirty(true) }} placeholder="Onset, progression, associated symptoms…" className={`${field} h-20`} />
+                  <textarea value={hpi} disabled={!canUpdateSoap || locked} onChange={e => { setHpi(e.target.value); setDirty(true) }} placeholder="Onset, progression, associated symptoms…" className={`${field} h-20`} />
                 </div>
                 <div>
                   <label className="text-[13px] font-semibold text-surface-700 block mb-2">Examination Notes</label>
-                  <textarea value={examination} disabled={locked} onChange={e => { setExamination(e.target.value); setDirty(true) }} placeholder="General exam, systemic findings…" className={`${field} h-20`} />
+                  <textarea value={examination} disabled={!canUpdateSoap || locked} onChange={e => { setExamination(e.target.value); setDirty(true) }} placeholder="General exam, systemic findings…" className={`${field} h-20`} />
                 </div>
                 <div>
                   <label className="text-[13px] font-semibold text-surface-700 block mb-2">Clinical Notes</label>
-                  <textarea value={clinicalNotes} disabled={locked} onChange={e => { setClinicalNotes(e.target.value); setDirty(true) }} placeholder="Assessment, plan, advice…" className={`${field} h-16`} />
+                  <textarea value={clinicalNotes} disabled={!canUpdateSoap || locked} onChange={e => { setClinicalNotes(e.target.value); setDirty(true) }} placeholder="Assessment, plan, advice…" className={`${field} h-16`} />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="text-[13px] font-semibold text-surface-700 block mb-2"><CalendarClock className="w-3.5 h-3.5 inline mr-1" />Follow-up Date</label>
-                    <input type="date" value={followUpDate} disabled={locked} onChange={e => { setFollowUpDate(e.target.value); setDirty(true) }} className={inputCls} />
+                    <input type="date" value={followUpDate} disabled={!canUpdateSoap || locked} onChange={e => { setFollowUpDate(e.target.value); setDirty(true) }} className={inputCls} />
                   </div>
                   <div>
                     <label className="text-[13px] font-semibold text-surface-700 block mb-2">Follow-up Notes</label>
-                    <input value={followUpNotes} disabled={locked} onChange={e => { setFollowUpNotes(e.target.value); setDirty(true) }} placeholder="e.g. review HbA1c" className={inputCls} />
+                    <input value={followUpNotes} disabled={!canUpdateSoap || locked} onChange={e => { setFollowUpNotes(e.target.value); setDirty(true) }} placeholder="e.g. review HbA1c" className={inputCls} />
                   </div>
                 </div>
-                {!locked && (
+                {!locked && canUpdateSoap && (
                   <div className="flex justify-end">
                     <Button onClick={saveDraft} disabled={busy || !dirty}><Save className="w-4 h-4" /> Save Notes</Button>
                   </div>
@@ -576,7 +590,7 @@ export default function Consultation() {
               <div className="bg-white rounded-2xl border border-surface-100 shadow-healthcare p-5">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-[14px] font-semibold text-surface-800">Vitals</h3>
-                  {!locked && !showVitalsForm && (
+                  {!locked && canVitals && !showVitalsForm && (
                     <button onClick={() => setShowVitalsForm(true)} className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-primary-50 text-primary-600 text-[11px] font-medium hover:bg-primary-100 transition-colors">
                       <Plus className="w-3 h-3" /> Record
                     </button>
@@ -636,7 +650,7 @@ export default function Consultation() {
                     ))}
                   </div>
                 )}
-                {!locked && (
+                {!locked && canDiagnose && (
                   <div className="space-y-2">
                     <Autocomplete
                       value={diagName}
@@ -668,7 +682,7 @@ export default function Consultation() {
                 <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
                   <label className="text-[13px] font-semibold text-surface-700">Prescription</label>
                   <div className="flex items-center gap-2">
-                    {!currentRx && !locked && (
+                    {!currentRx && !locked && canCreateRx && (
                       <Button size="sm" onClick={startPrescription} disabled={busy}><Pill className="w-4 h-4" /> Create</Button>
                     )}
                     {currentRx?.items.length ? (
@@ -697,7 +711,7 @@ export default function Consultation() {
                   </div>
                 </div>
 
-                {!locked && currentRx && (
+                {!locked && canAiJob && currentRx && (
                   <div className="mb-3 flex flex-col gap-3 rounded-xl border border-primary-100 bg-primary-50/60 p-3 sm:flex-row sm:items-center">
                     <div className="flex flex-1 items-start gap-3">
                       <Sparkles className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary-600" />
@@ -712,7 +726,7 @@ export default function Consultation() {
                   </div>
                 )}
 
-                {!locked && currentRx && (
+                {!locked && canCreateRx && currentRx && (
                   <button onClick={() => setShowTemplates(true)} className="mb-3 inline-flex items-center gap-1.5 rounded-lg border border-accent-200 bg-accent-50 px-3 py-1.5 text-[12px] font-semibold text-accent-700 hover:bg-accent-100 transition-colors">
                     <Bookmark className="w-3.5 h-3.5" /> Apply Rx Template
                   </button>
@@ -721,7 +735,7 @@ export default function Consultation() {
                 {!currentRx ? (
                   <div className="text-center py-4">
                     <p className="text-[13px] text-surface-500 mb-3">No prescription created for this encounter.</p>
-                    {!locked && <Button onClick={startPrescription} disabled={busy}><Pill className="w-4 h-4" /> Create Prescription</Button>}
+                    {!locked && canCreateRx && <Button onClick={startPrescription} disabled={busy}><Pill className="w-4 h-4" /> Create Prescription</Button>}
                   </div>
                 ) : (
                   <div className="space-y-3">
@@ -739,7 +753,7 @@ export default function Consultation() {
                       </div>
                     )}
 
-                    {aiSuggestions.length > 0 && (
+                    {canCreateRx && aiSuggestions.length > 0 && (
                       <div className="rounded-xl border border-accent-200 bg-accent-50/50 p-3">
                         <p className="mb-2 flex items-center gap-1.5 text-[12px] font-semibold text-accent-700"><Sparkles className="w-3.5 h-3.5" /> AI suggested medicines (review &amp; add)</p>
                         <div className="flex flex-wrap gap-2">
@@ -752,7 +766,7 @@ export default function Consultation() {
                       </div>
                     )}
 
-                    {currentRx.status === 'draft' && !locked && (
+                    {currentRx.status === 'draft' && !locked && canCreateRx && (
                       <>
                         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                           <Autocomplete
@@ -788,7 +802,7 @@ export default function Consultation() {
                           <Button onClick={addCurrentRx} disabled={busy}><Plus className="w-4 h-4" /> Add Medicine</Button>
                         </div>
                         <div className="flex justify-end">
-                          <Button variant="secondary" onClick={issuePrescription} disabled={busy || currentRx.items.length === 0}>
+                          <Button variant="secondary" onClick={issuePrescription} disabled={busy || currentRx.items.length === 0 || !canIssueRx}>
                             <Ban className="w-4 h-4 rotate-180" /> Issue Prescription
                           </Button>
                         </div>

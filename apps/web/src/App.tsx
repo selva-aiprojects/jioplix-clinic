@@ -13,6 +13,7 @@ import Patients from './pages/Patients'
 import PatientProfile from './pages/PatientProfile'
 import Appointments from './pages/Appointments'
 import Consultation from './pages/Consultation'
+import ConsultationPicker from './pages/ConsultationPicker'
 import Billing from './pages/Billing'
 import Analytics from './pages/Analytics'
 import Engagement from './pages/Engagement'
@@ -77,7 +78,7 @@ function AppRoutes() {
         <Route path="/patients" element={<Patients />} />
         <Route path="/patients/:id" element={<PatientProfile />} />
         <Route path="/appointments" element={<Appointments />} />
-        <Route path="/consultation" element={<Consultation />} />
+        <Route path="/consultation" element={<ConsultationPicker />} />
         <Route path="/encounters/:id" element={<Consultation />} />
         <Route path="/billing" element={<Billing />} />
         <Route path="/analytics" element={<Analytics />} />

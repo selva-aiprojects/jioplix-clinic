@@ -54,7 +54,7 @@ const navGroups: { title: string; items: NavItem[] }[] = [
     items: [
       { to: '/patients', icon: Users, label: 'Patients', color: 'text-accent-600' },
       { to: '/appointments', icon: Calendar, label: 'Appointments', color: 'text-info-600' },
-      { to: '/consultation', icon: Stethoscope, label: 'Consultation', color: 'text-success-600' },
+      { to: '/consultation', icon: Stethoscope, label: 'Consultation', color: 'text-success-600', permission: 'encounters:read' },
       { to: '/teleconsultation', icon: Video, label: 'Teleconsultation', color: 'text-primary-500' },
       { to: '/billing', icon: CreditCard, label: 'Billing', color: 'text-warning-600' },
       { to: '/campaigns', icon: Send, label: 'Campaigns', color: 'text-accent-500' },
