@@ -159,7 +159,7 @@ export default function Login() {
           expiresAt: Date.now() + 15 * 60 * 1000,
           version: 1,
         }))
-        window.location.href = from
+        window.location.hash = from
       }
     } catch (err) {
       setError(friendlyError(err))

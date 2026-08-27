@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { X, Bell, Trash2, CheckCheck } from 'lucide-react'
 import {
   getNotifications, markAllRead, markRead, categoryStyles,
@@ -19,6 +20,7 @@ const FILTERS: Array<{ key: string; label: string }> = [
 ]
 
 export default function NotificationPanel({ open, onClose }: NotificationPanelProps) {
+  const navigate = useNavigate()
   const [items, setItems] = useState<AppNotification[]>([])
   const [filter, setFilter] = useState('all')
 
@@ -38,7 +40,7 @@ export default function NotificationPanel({ open, onClose }: NotificationPanelPr
     setItems(getNotifications())
     if (n.href) {
       onClose()
-      window.location.assign(n.href)
+      navigate(n.href)
     }
   }
 
