@@ -68,7 +68,7 @@ export interface DiagnosisView {
 export class EncountersService {
   constructor(private readonly db: DbService) {}
 
-  async create(schemaName: string, input: EncounterCreate) {
+  async create(schemaName: string, createdBy: string, input: EncounterCreate) {
     return this.db.withTenant(schemaName, async (db) => {
       const [patient] = await db
         .select({ firstName: patients.firstName, lastName: patients.lastName })
@@ -99,8 +99,8 @@ export class EncountersService {
           clinicalNotes: input.clinicalNotes ?? null,
           followUpDate: input.followUpDate ?? null,
           followUpNotes: input.followUpNotes ?? null,
-          createdBy: input.doctorId,
-          updatedBy: input.doctorId,
+          createdBy,
+          updatedBy: createdBy,
         })
         .returning()
 
@@ -210,7 +210,7 @@ export class EncountersService {
     })
   }
 
-  async update(schemaName: string, id: string, input: EncounterUpdate) {
+  async update(schemaName: string, id: string, updatedBy: string, input: EncounterUpdate) {
     return this.db.withTenant(schemaName, async (db) => {
       const [current] = await db.select().from(encounters).where(eq(encounters.id, id)).limit(1)
       if (!current) throw new NotFoundException('ENCOUNTER_NOT_FOUND')
@@ -225,7 +225,7 @@ export class EncountersService {
           ...(input.clinicalNotes !== undefined && { clinicalNotes: input.clinicalNotes }),
           ...(input.followUpDate !== undefined && { followUpDate: input.followUpDate ?? null }),
           ...(input.followUpNotes !== undefined && { followUpNotes: input.followUpNotes }),
-          updatedBy: current.doctorId,
+          updatedBy,
           updatedAt: new Date(),
         })
         .where(eq(encounters.id, id))
@@ -235,7 +235,7 @@ export class EncountersService {
     })
   }
 
-  async addVitals(schemaName: string, encounterId: string, input: VitalsCreate) {
+  async addVitals(schemaName: string, encounterId: string, recordedBy: string, input: VitalsCreate) {
     return this.db.withTenant(schemaName, async (db) => {
       const [enc] = await db.select().from(encounters).where(eq(encounters.id, encounterId)).limit(1)
       if (!enc) throw new NotFoundException('ENCOUNTER_NOT_FOUND')
@@ -259,7 +259,7 @@ export class EncountersService {
           weightKg: input.weightKg ? Number(input.weightKg.toFixed(1)) : null,
           heightCm: input.heightCm ? Number(input.heightCm.toFixed(1)) : null,
           bmi: bmi ? Number(bmi.toFixed(1)) : null,
-          recordedBy: enc.doctorId,
+          recordedBy,
         })
         .returning()
 
@@ -308,7 +308,7 @@ export class EncountersService {
     })
   }
 
-  async lock(schemaName: string, id: string) {
+  async lock(schemaName: string, id: string, lockedBy: string) {
     return this.db.withTenant(schemaName, async (db) => {
       const [current] = await db.select().from(encounters).where(eq(encounters.id, id)).limit(1)
       if (!current) throw new NotFoundException('ENCOUNTER_NOT_FOUND')
@@ -316,7 +316,7 @@ export class EncountersService {
 
       const [row] = await db
         .update(encounters)
-        .set({ isLocked: true, lockedAt: new Date(), lockedBy: current.doctorId, updatedAt: new Date() })
+        .set({ isLocked: true, lockedAt: new Date(), lockedBy, updatedAt: new Date() })
         .where(eq(encounters.id, id))
         .returning()
 

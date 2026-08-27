@@ -21,7 +21,9 @@ import {
 import { EncountersService } from './encounters.service.js'
 import { TenantGuard } from '../tenancy/tenant.guard.js'
 import { CurrentTenant } from '../tenancy/current-tenant.decorator.js'
+import { CurrentUser } from '../auth/current-user.decorator.js'
 import type { TenantContext } from '../tenancy/tenant.guard.js'
+import type { AuthContext } from '@jioplix/contracts'
 import { RequirePermissions } from '../auth/auth.decorators.js'
 
 @Controller('encounters')
@@ -31,10 +33,14 @@ export class EncountersController {
 
   @Post()
   @RequirePermissions('encounters:create')
-  async create(@CurrentTenant() tenant: TenantContext, @Body() body: unknown) {
+  async create(
+    @CurrentTenant() tenant: TenantContext,
+    @CurrentUser() user: AuthContext,
+    @Body() body: unknown,
+  ) {
     const parsed = encounterCreateSchema.safeParse(body)
     if (!parsed.success) throw new BadRequestException('VALIDATION_FAILED')
-    return { data: await this.encounters.create(tenant.schemaName, parsed.data) }
+    return { data: await this.encounters.create(tenant.schemaName, user.userId, parsed.data) }
   }
 
   @Get()
@@ -54,18 +60,28 @@ export class EncountersController {
 
   @Patch(':id')
   @RequirePermissions('encounters:update')
-  async update(@CurrentTenant() tenant: TenantContext, @Param('id') id: string, @Body() body: unknown) {
+  async update(
+    @CurrentTenant() tenant: TenantContext,
+    @CurrentUser() user: AuthContext,
+    @Param('id') id: string,
+    @Body() body: unknown,
+  ) {
     const parsed = encounterUpdateSchema.safeParse(body)
     if (!parsed.success) throw new BadRequestException('VALIDATION_FAILED')
-    return { data: await this.encounters.update(tenant.schemaName, id, parsed.data) }
+    return { data: await this.encounters.update(tenant.schemaName, id, user.userId, parsed.data) }
   }
 
   @Post(':id/vitals')
   @RequirePermissions('vitals:create')
-  async addVitals(@CurrentTenant() tenant: TenantContext, @Param('id') id: string, @Body() body: unknown) {
+  async addVitals(
+    @CurrentTenant() tenant: TenantContext,
+    @CurrentUser() user: AuthContext,
+    @Param('id') id: string,
+    @Body() body: unknown,
+  ) {
     const parsed = vitalsCreateSchema.safeParse(body)
     if (!parsed.success) throw new BadRequestException('VALIDATION_FAILED')
-    return { data: await this.encounters.addVitals(tenant.schemaName, id, parsed.data) }
+    return { data: await this.encounters.addVitals(tenant.schemaName, id, user.userId, parsed.data) }
   }
 
   @Post(':id/diagnoses')
@@ -79,8 +95,12 @@ export class EncountersController {
   @Post(':id/lock')
   @HttpCode(HttpStatus.OK)
   @RequirePermissions('encounters:lock')
-  async lock(@CurrentTenant() tenant: TenantContext, @Param('id') id: string) {
-    return { data: await this.encounters.lock(tenant.schemaName, id) }
+  async lock(
+    @CurrentTenant() tenant: TenantContext,
+    @CurrentUser() user: AuthContext,
+    @Param('id') id: string,
+  ) {
+    return { data: await this.encounters.lock(tenant.schemaName, id, user.userId) }
   }
 }
 
