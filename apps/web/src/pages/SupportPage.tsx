@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import {
-  AlertCircle, CheckCircle2, ChevronDown, Clock, Headphones, Loader2,
-  MessageSquare, Plus, Send, Tag, X,
+  AlertCircle, CheckCircle2, Headphones, Loader2,
+  MessageSquare, Plus, Send, X,
 } from 'lucide-react'
 import { api } from '../lib/api'
 
@@ -58,8 +58,8 @@ export default function SupportPage() {
   async function loadTickets() {
     setLoading(true)
     try {
-      const data = await api('/support/tickets')
-      setTickets(data as Ticket[])
+      const data = await api<Ticket[]>('/support/tickets')
+      setTickets(data)
     } catch { /* ignore */ }
     setLoading(false)
   }

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import {
-  AlertCircle, CheckCircle2, ChevronDown, Clock, Headphones, Loader2,
-  MessageSquare, Send, Tag, X, RefreshCw,
+  Headphones, Loader2,
+  MessageSquare, Send, RefreshCw,
 } from 'lucide-react'
 import { platformApi } from '../lib/api'
 

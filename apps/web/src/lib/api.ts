@@ -1005,7 +1005,6 @@ export async function platformApi<T>(path: string, opts: RequestOptions = {}): P
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    ...(opts.headers as Record<string, string> ?? {}),
   }
 
   if (session?.accessToken) {

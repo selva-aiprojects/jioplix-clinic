@@ -35,7 +35,7 @@ export default function BillingPage() {
 
       // Try to get current plan from tenant info
       try {
-        const tenantInfo = await api('/tenants/me')
+        const tenantInfo = await api<{ planCode?: string }>('/tenants/me')
         setCurrentPlan(tenantInfo.planCode ?? null)
       } catch { /* ignore */ }
     } catch { /* ignore */ }
