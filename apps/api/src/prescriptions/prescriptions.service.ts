@@ -49,6 +49,7 @@ export class PrescriptionsService {
     return this.db.withTenant(schemaName, async (db) => {
       const [enc] = await db.select().from(encounters).where(eq(encounters.id, input.encounterId)).limit(1)
       if (!enc) throw new NotFoundException('ENCOUNTER_NOT_FOUND')
+      if (enc.isLocked) throw new ConflictException('ENCOUNTER_SIGNED')
 
       const [patient] = await db
         .select({ firstName: patients.firstName, lastName: patients.lastName })
@@ -191,6 +192,9 @@ export class PrescriptionsService {
       if (!rx) throw new NotFoundException('PRESCRIPTION_NOT_FOUND')
       if (rx.status !== 'draft') throw new BadRequestException('PRESCRIPTION_NOT_DRAFT')
 
+      const [enc] = await db.select().from(encounters).where(eq(encounters.id, rx.encounterId)).limit(1)
+      if (enc?.isLocked) throw new ConflictException('ENCOUNTER_SIGNED')
+
       const [count] = await db
         .select({ count: sql<number>`count(*)` })
         .from(prescriptionItems)
@@ -204,14 +208,14 @@ export class PrescriptionsService {
           drugName: input.drugName,
           genericName: input.genericName ?? null,
           strength: input.strength ?? null,
-          form: input.form ?? null,
+          form: input.form ? input.form.trim().toLowerCase() : null,
           dosage: input.dosage,
           frequency: input.frequency,
-          route: input.route ?? null,
+          route: input.route ? input.route.trim().toLowerCase() : null,
           durationDays: input.durationDays ?? null,
           quantity: input.quantity ?? null,
           instructions: input.instructions ?? null,
-          sequence: (count?.count ?? 0),
+          sequence: Number(count?.count ?? 0),
         })
         .returning()
 

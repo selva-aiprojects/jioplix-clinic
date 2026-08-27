@@ -239,6 +239,7 @@ export class EncountersService {
     return this.db.withTenant(schemaName, async (db) => {
       const [enc] = await db.select().from(encounters).where(eq(encounters.id, encounterId)).limit(1)
       if (!enc) throw new NotFoundException('ENCOUNTER_NOT_FOUND')
+      if (enc.isLocked) throw new ConflictException('ENCOUNTER_SIGNED')
 
       const bmi =
         input.weightKg && input.heightCm
@@ -283,6 +284,7 @@ export class EncountersService {
     return this.db.withTenant(schemaName, async (db) => {
       const [enc] = await db.select().from(encounters).where(eq(encounters.id, encounterId)).limit(1)
       if (!enc) throw new NotFoundException('ENCOUNTER_NOT_FOUND')
+      if (enc.isLocked) throw new ConflictException('ENCOUNTER_SIGNED')
 
       const [row] = await db
         .insert(encounterDiagnoses)

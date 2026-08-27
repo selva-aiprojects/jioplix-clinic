@@ -7,7 +7,7 @@ import { ErrorFilter } from './common/error.filter.js'
 import { API_PREFIX } from '@jioplix/contracts'
 import { Pool } from 'pg'
 import { pgConnectionOptions } from '@jioplix/db'
-import { initGlobal } from '@jioplix/db'
+import { initGlobal, migrateExistingTenants } from '@jioplix/db'
 
 function loadRootEnv(): void {
   let dir = process.cwd()
@@ -33,6 +33,11 @@ async function bootstrap(): Promise<void> {
   try {
     const applied = await initGlobal(pool)
     if (applied.length) console.log(`[DB] Applied ${applied.length} global migration(s): ${applied.join(', ')}`)
+    // Apply any pending tenant migrations to existing schemas
+    const tenantApplied = await migrateExistingTenants(pool)
+    if (tenantApplied.length) {
+      console.log(`[DB] Applied ${tenantApplied.length} tenant migration(s): ${tenantApplied.join(', ')}`)
+    }
   } finally {
     await pool.end()
   }

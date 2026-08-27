@@ -99,6 +99,21 @@ export async function initGlobal(pool: Pool): Promise<string[]> {
   return applyMigrations(pool, { kind: 'global' })
 }
 
+export async function migrateExistingTenants(pool: Pool): Promise<string[]> {
+  const { rows } = await pool.query(
+    `SELECT schema_name FROM public.tenants WHERE status IN ('active', 'suspended')`,
+  )
+  const applied: string[] = []
+  for (const t of rows as Array<{ schema_name: string }>) {
+    const version = await applyMigrations(pool, {
+      kind: 'tenant',
+      searchPath: `"${t.schema_name}",public`,
+    })
+    for (const v of version) applied.push(`${t.schema_name}:${v}`)
+  }
+  return applied
+}
+
 export async function provisionTenant(
   pool: Pool,
   input: ProvisionInput,
