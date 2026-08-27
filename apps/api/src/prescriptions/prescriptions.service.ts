@@ -247,4 +247,31 @@ export class PrescriptionsService {
       }
     })
   }
+
+  async removeItem(schemaName: string, prescriptionId: string, itemId: string) {
+    return this.db.withTenant(schemaName, async (db) => {
+      const [rx] = await db.select().from(prescriptions).where(eq(prescriptions.id, prescriptionId)).limit(1)
+      if (!rx) throw new NotFoundException('PRESCRIPTION_NOT_FOUND')
+      if (rx.status !== 'draft') throw new BadRequestException('PRESCRIPTION_NOT_DRAFT')
+
+      const [enc] = await db.select().from(encounters).where(eq(encounters.id, rx.encounterId)).limit(1)
+      if (enc?.isLocked) throw new ConflictException('ENCOUNTER_SIGNED')
+
+      const [item] = await db
+        .select()
+        .from(prescriptionItems)
+        .where(eq(prescriptionItems.id, itemId))
+        .limit(1)
+
+      if (!item || item.prescriptionId !== prescriptionId) {
+        throw new NotFoundException('PRESCRIPTION_ITEM_NOT_FOUND')
+      }
+
+      await db
+        .delete(prescriptionItems)
+        .where(eq(prescriptionItems.id, itemId))
+
+      return { id: itemId }
+    })
+  }
 }

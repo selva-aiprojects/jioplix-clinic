@@ -5,7 +5,7 @@ import {
   Stethoscope, ClipboardList, Pill, FileText,
   ArrowRight, CheckCircle2, Sparkles, AlertTriangle,
   Plus, Activity, Lock, Save, Ban, CalendarClock, Printer,
-  Bookmark, Languages, ScanLine, Download,
+  Bookmark, Languages, ScanLine, Download, X,
 } from 'lucide-react'
 import { PageHeader, Button } from '../components/ui'
 import Autocomplete from '../components/Autocomplete'
@@ -13,7 +13,7 @@ import RxTemplatePicker from '../components/RxTemplatePicker'
 import {
   getEncounter, getPatient, updateEncounter, addVitals, addDiagnosis,
   lockEncounter, createPrescription, listPrescriptionsByEncounter,
-  addPrescriptionItem, updatePrescriptionStatus, listPatientEncounters,
+  addPrescriptionItem, deletePrescriptionItem, updatePrescriptionStatus, listPatientEncounters,
   createAiJob, getAiJob,
 } from '../lib/api'
 import type { Encounter, Patient, Prescription, PatientEncounterSummary, AiJob } from '../lib/api'
@@ -299,6 +299,15 @@ export default function Consultation() {
       await refreshRx(encounter!.id)
       setActiveTab('rx')
       setNotice(added ? `Added ${added} item${added > 1 ? 's' : ''} from template` : 'All template medicines are already on this prescription.')
+    })
+
+  const removePrescriptionItem = (itemId: string) =>
+    run(async () => {
+      const rx = rxList.find(r => r.status === 'draft')
+      if (!rx) return
+      await deletePrescriptionItem(rx.id, itemId)
+      await refreshRx(encounter!.id)
+      setNotice('Medicine removed from prescription.')
     })
 
   const issuePrescription = () =>
@@ -796,6 +805,11 @@ export default function Consultation() {
                               <p className="text-[13px] font-semibold text-surface-800">{it.drugName}{it.strength ? ` ${it.strength}` : ''}{it.genericName ? <span className="text-[11px] font-normal text-surface-400"> · {it.genericName}</span> : null}</p>
                               <p className="text-[12px] text-surface-500">{it.dosage} · {it.frequency}{it.durationDays ? ` · ${it.durationDays} days` : ''}{it.instructions ? ` · ${it.instructions}` : ''}</p>
                             </div>
+                            {!locked && currentRx.status === 'draft' && (
+                              <button onClick={() => removePrescriptionItem(it.id)} className="rounded-lg p-1.5 text-surface-400 hover:text-danger-600 hover:bg-danger-50 transition-colors" title="Remove medicine">
+                                <X className="w-4 h-4" />
+                              </button>
+                            )}
                           </div>
                         ))}
                       </div>

@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   HttpStatus,
@@ -73,5 +74,16 @@ export class PrescriptionsController {
     const parsed = prescriptionItemCreateSchema.safeParse(body)
     if (!parsed.success) throw new BadRequestException('VALIDATION_FAILED')
     return { data: await this.prescriptions.addItem(tenant.schemaName, id, parsed.data) }
+  }
+
+  @Delete(':id/items/:itemId')
+  @HttpCode(HttpStatus.OK)
+  @RequirePermissions('prescriptions:update')
+  async removeItem(
+    @CurrentTenant() tenant: TenantContext,
+    @Param('id') id: string,
+    @Param('itemId') itemId: string,
+  ) {
+    return { data: await this.prescriptions.removeItem(tenant.schemaName, id, itemId) }
   }
 }

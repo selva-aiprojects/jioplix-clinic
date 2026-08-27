@@ -472,6 +472,10 @@ export async function addPrescriptionItem(prescriptionId: string, data: {
   return api<PrescriptionItem>(`/prescriptions/${prescriptionId}/items`, { method: 'POST', body: data })
 }
 
+export async function deletePrescriptionItem(prescriptionId: string, itemId: string): Promise<{ id: string }> {
+  return api<{ id: string }>(`/prescriptions/${prescriptionId}/items/${itemId}`, { method: 'DELETE' })
+}
+
 export async function createInvoice(data: {
   patientId: string
   encounterId?: string
