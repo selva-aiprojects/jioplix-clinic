@@ -44,6 +44,7 @@ import { PaymentModule } from './payment/payment.module.js'
 import { PasswordResetModule } from './password-reset/password-reset.module.js'
 import { SupportTicketModule } from './support-ticket/support-ticket.module.js'
 import { UpgradeModule } from './upgrade/upgrade.module.js'
+import { SchedulerModule } from './scheduler/scheduler.module.js'
 
 @Module({
   controllers: [
@@ -95,6 +96,7 @@ import { UpgradeModule } from './upgrade/upgrade.module.js'
     PasswordResetModule,
     SupportTicketModule,
     UpgradeModule,
+    SchedulerModule,
   ],
 })
 export class AppModule {}
