@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "outputDirectory": "dist",
+  "outputDirectory": "apps/web/dist",
   "builds": [
     {
       "src": "package.json",
