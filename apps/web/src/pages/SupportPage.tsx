@@ -87,7 +87,7 @@ export default function SupportPage() {
     setSelectedTicket(ticketId)
     setLoadingDetail(true)
     try {
-      const data = await api(`/support/tickets/${ticketId}`)
+      const data = await api<{ responses: TicketResponse[] }>(`/support/tickets/${ticketId}`)
       setResponses(data.responses ?? [])
     } catch { /* ignore */ }
     setLoadingDetail(false)
