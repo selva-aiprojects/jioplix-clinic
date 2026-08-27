@@ -226,7 +226,7 @@ export default function Consultation() {
   const ensureDraftRx = async (): Promise<Prescription | null> => {
     if (!encounter) return null
     const fresh = await listPrescriptionsByEncounter(encounter.id)
-    let draft = fresh.find(r => r.status === 'draft')
+    let draft: Prescription | null = fresh.find(r => r.status === 'draft') ?? null
     if (!draft) {
       await createPrescription({ encounterId: encounter.id, patientId: encounter.patientId })
       const next = await listPrescriptionsByEncounter(encounter.id)
