@@ -532,6 +532,8 @@ export function describeApiError(e: unknown): string {
       case 'RESULTS_REQUIRED': return 'Enter results before completing this lab order.'
       case 'SAMPLE_NOT_COLLECTED': return 'Collect the sample before entering results.'
       case 'PRESCRIPTION_NOT_ISSUED': return 'Only issued prescriptions can be dispensed.'
+      case 'PRESCRIPTION_NOT_DRAFT': return 'This prescription has already been issued. Start a new prescription to continue.'
+      case 'DUPLICATE_MEDICINE': return 'That medicine is already on this prescription.'
       default: return e.code.replaceAll('_', ' ').toLowerCase()
     }
   }

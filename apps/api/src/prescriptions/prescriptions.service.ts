@@ -1,5 +1,5 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common'
-import { desc, eq, sql } from 'drizzle-orm'
+import { desc, eq } from 'drizzle-orm'
 import { DbService, type TenantDb } from '../db/db.service.js'
 import { newId } from '@jioplix/contracts'
 import type { PrescriptionCreate, PrescriptionItemCreate } from '@jioplix/contracts'
@@ -195,10 +195,21 @@ export class PrescriptionsService {
       const [enc] = await db.select().from(encounters).where(eq(encounters.id, rx.encounterId)).limit(1)
       if (enc?.isLocked) throw new ConflictException('ENCOUNTER_SIGNED')
 
-      const [count] = await db
-        .select({ count: sql<number>`count(*)` })
+      const items = await db
+        .select()
         .from(prescriptionItems)
         .where(eq(prescriptionItems.prescriptionId, prescriptionId))
+
+      const norm = (s: string | null | undefined) => (s ?? '').trim().toLowerCase()
+      const duplicate = items.find(
+        (it) =>
+          norm(it.drugName) === norm(input.drugName) &&
+          norm(it.strength) === norm(input.strength) &&
+          norm(it.form) === norm(input.form) &&
+          norm(it.dosage) === norm(input.dosage) &&
+          norm(it.frequency) === norm(input.frequency),
+      )
+      if (duplicate) throw new ConflictException('DUPLICATE_MEDICINE')
 
       const [row] = await db
         .insert(prescriptionItems)
@@ -215,7 +226,7 @@ export class PrescriptionsService {
           durationDays: input.durationDays ?? null,
           quantity: input.quantity ?? null,
           instructions: input.instructions ?? null,
-          sequence: Number(count?.count ?? 0),
+          sequence: items.length,
         })
         .returning()
 

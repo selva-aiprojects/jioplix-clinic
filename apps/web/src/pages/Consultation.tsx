@@ -223,10 +223,39 @@ export default function Consultation() {
       await refreshRx(encounter!.id)
     }, 'Prescription created')
 
+  const ensureDraftRx = async (): Promise<Prescription | null> => {
+    if (!encounter) return null
+    const fresh = await listPrescriptionsByEncounter(encounter.id)
+    let draft = fresh.find(r => r.status === 'draft')
+    if (!draft) {
+      await createPrescription({ encounterId: encounter.id, patientId: encounter.patientId })
+      const next = await listPrescriptionsByEncounter(encounter.id)
+      setRxList(next)
+      draft = next.find(r => r.status === 'draft') ?? null
+    } else {
+      setRxList(fresh)
+    }
+    return draft
+  }
+
+  function duplicateMedicine(
+    items: Prescription['items'],
+    item: { drugName: string; strength?: string; form?: string; dosage: string; frequency: string },
+  ): boolean {
+    const norm = (s?: string) => (s ?? '').trim().toLowerCase()
+    const key = `${norm(item.drugName)}|${norm(item.strength)}|${norm(item.form)}|${norm(item.dosage)}|${norm(item.frequency)}`
+    return items.some(it =>
+      `${norm(it.drugName)}|${norm(it.strength ?? undefined)}|${norm(it.form ?? undefined)}|${norm(it.dosage)}|${norm(it.frequency)}` === key,
+    )
+  }
+
   const appendRxItem = (item: Partial<RxTemplateItem> & { drugName: string; dosage: string; frequency: string }) =>
     run(async () => {
-      const rx = rxList.find(r => r.status === 'draft') ?? rxList[0]
+      const rx = await ensureDraftRx()
       if (!rx) return
+      if (duplicateMedicine(rx.items, item)) {
+        throw new Error(`"${item.drugName}" is already on this prescription.`)
+      }
       await addPrescriptionItem(rx.id, {
         drugName: item.drugName.trim(),
         genericName: item.genericName?.trim() || undefined,
@@ -246,16 +275,35 @@ export default function Consultation() {
       dosage: RxDosage, frequency: rxFrequency, durationDays: rxDuration === '' ? undefined : Number(rxDuration), instructions: rxInstructions,
     })
 
-  const applyTemplate = (items: RxTemplateItem[]) => {
-    if (!currentRx) { startPrescription() }
-    items.forEach(it => { void appendRxItem(it) })
-    setActiveTab('rx')
-    setNotice(`Added ${items.length} item${items.length > 1 ? 's' : ''} from template`)
-  }
+  const applyTemplate = (items: RxTemplateItem[]) =>
+    run(async () => {
+      if (!items.length) return
+      let rx = await ensureDraftRx()
+      if (!rx) return
+      let added = 0
+      for (const it of items) {
+        if (duplicateMedicine(rx.items, it)) continue
+        const created = await addPrescriptionItem(rx.id, {
+          drugName: it.drugName.trim(),
+          genericName: it.genericName?.trim() || undefined,
+          strength: it.strength?.trim() || undefined,
+          form: it.form?.trim().toLowerCase() || undefined,
+          dosage: it.dosage.trim(),
+          frequency: it.frequency.trim(),
+          durationDays: it.durationDays != null ? Number(it.durationDays) : undefined,
+          instructions: it.instructions?.trim() || undefined,
+        })
+        rx = { ...rx, items: [...rx.items, created] }
+        added++
+      }
+      await refreshRx(encounter!.id)
+      setActiveTab('rx')
+      setNotice(added ? `Added ${added} item${added > 1 ? 's' : ''} from template` : 'All template medicines are already on this prescription.')
+    })
 
   const issuePrescription = () =>
     run(async () => {
-      const rx = rxList.find(r => r.status === 'draft') ?? rxList[0]
+      const rx = rxList.find(r => r.status === 'draft')
       if (!rx) return
       await updatePrescriptionStatus(rx.id, 'issued')
       await refreshRx(encounter!.id)
@@ -682,8 +730,8 @@ export default function Consultation() {
                 <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
                   <label className="text-[13px] font-semibold text-surface-700">Prescription</label>
                   <div className="flex items-center gap-2">
-                    {!currentRx && !locked && canCreateRx && (
-                      <Button size="sm" onClick={startPrescription} disabled={busy}><Pill className="w-4 h-4" /> Create</Button>
+                    {!locked && canCreateRx && (!currentRx || currentRx.status !== 'draft') && (
+                      <Button size="sm" onClick={startPrescription} disabled={busy}><Pill className="w-4 h-4" /> {currentRx ? 'New Prescription' : 'Create'}</Button>
                     )}
                     {currentRx?.items.length ? (
                       <div className="flex items-center gap-2">
@@ -726,7 +774,7 @@ export default function Consultation() {
                   </div>
                 )}
 
-                {!locked && canCreateRx && currentRx && (
+                {!locked && canCreateRx && currentRx && currentRx.status === 'draft' && (
                   <button onClick={() => setShowTemplates(true)} className="mb-3 inline-flex items-center gap-1.5 rounded-lg border border-accent-200 bg-accent-50 px-3 py-1.5 text-[12px] font-semibold text-accent-700 hover:bg-accent-100 transition-colors">
                     <Bookmark className="w-3.5 h-3.5" /> Apply Rx Template
                   </button>
@@ -753,7 +801,7 @@ export default function Consultation() {
                       </div>
                     )}
 
-                    {canCreateRx && aiSuggestions.length > 0 && (
+                    {canCreateRx && currentRx.status === 'draft' && aiSuggestions.length > 0 && (
                       <div className="rounded-xl border border-accent-200 bg-accent-50/50 p-3">
                         <p className="mb-2 flex items-center gap-1.5 text-[12px] font-semibold text-accent-700"><Sparkles className="w-3.5 h-3.5" /> AI suggested medicines (review &amp; add)</p>
                         <div className="flex flex-wrap gap-2">
