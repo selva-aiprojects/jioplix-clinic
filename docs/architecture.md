@@ -1,7 +1,8 @@
 # Jioplix Backend Architecture
 
 Version: 1.1 · Date: 2026-08-22
-Companion documents: `docs/prd.md` (v4.0), `docs/progress.md`
+Companion documents: `docs/prd.md` (v4.0), `docs/progress.md`,
+`docs/phone-otp-provider-design.md`, `docs/backend-persistence-roadmap.md`
 
 ---
 
@@ -31,7 +32,7 @@ Companion documents: `docs/prd.md` (v4.0), `docs/progress.md`
 | Cache / Queue | Redis 7 + BullMQ | Sessions, entitlement cache, outbox workers |
 | Object storage | S3-compatible (MinIO dev / S3 prod) | Documents, lab PDFs, images |
 | Search | Postgres `pg_trgm` FTS | Patient search <1s; Meilisearch only if needed |
-| AuthN | Phone OTP (MSG91) + password fallback, JWT access 15m + rotating refresh, TOTP MFA | PRD Epic 15 |
+| AuthN | Phone OTP + password fallback, JWT access 15m + rotating refresh, TOTP MFA. OTP delivered via a pluggable `OtpProvider` adapter — `DemoOtpProvider` in demo mode (static on-screen code), `Msg91OtpProvider` (India SMS/WhatsApp) or `SupabaseOtpProvider` in production. See `docs/phone-otp-provider-design.md` + `docs/sms-dlt-provider.md`. | PRD Epic 15 |
 
 Alternatives considered: Fastify+tsoa (lighter, more hand-rolling), Prisma (fine, but Drizzle's raw-SQL ergonomics suit per-schema migrations), Supabase (great accelerator, but ABDM/billing logic wants full control).
 
@@ -193,6 +194,8 @@ WhatsApp BSP (Gupshup/AiSMA/Meta Cloud API) hidden behind adapter interface.
 - Encryption: TLS 1.3 transit; at-rest via RDS/storage KMS
 - AuthZ: JWT claims (tenant, branches[], roles[]) + per-route permission check
   against tenant `roles.permissions` JSONB
+- OTP: pluggable `OtpProvider` (demo vs Supabase+India SMS), gated by phone allowlist + env — see
+  `docs/phone-otp-provider-design.md`
 - Audit: append-only `audit_logs(actor, entity, entity_id, action, old_value,
   new_value, reason?, ip, ua)` written in the same transaction as the change;
   monthly partitions; no UPDATE/DELETE grants
@@ -228,7 +231,7 @@ Seeds mirror the UI demo data (Dr. Priya, Rajesh Kumar, tokens #12–17…).
 
 1. Cloud target: AWS vs GCP vs Indian-hosted (MeitY empanelment for ABDM?) — affects managed-service picks only, not design
 2. WhatsApp BSP choice (pricing/throughput quotes pending)
-3. SMS OTP provider (MSG91 assumed)
+3. SMS OTP delivery provider (Supabase + India SMS/WhatsApp chosen; DLT template/provider commercial pending — see `docs/phone-otp-provider-design.md`)
 4. Mobile app roadmap — REST already supports it; native shell undecided
 
 ## 11. Deployment Architecture

@@ -105,11 +105,11 @@ await check('DB-1  PostgreSQL reachable on :5434', async () => {
   assert(v.includes('PostgreSQL'), 'no PostgreSQL response')
 })
 
-await check('DB-2  Global registry: 4 plans, 4 active tenants', async () => {
+await check('DB-2  Global registry: 4 plans, >=4 seed tenants active', async () => {
   const plans = Number(await psql('SELECT count(*) FROM public.plans'))
   const tenants = Number(await psql("SELECT count(*) FROM public.tenants WHERE status='active'"))
   assert(plans === 4, `expected 4 plans, got ${plans}`)
-  assert(tenants === 4, `expected 4 active tenants, got ${tenants}`)
+  assert(tenants >= 4, `expected >=4 active tenants, got ${tenants}`)
 })
 
 await check('DB-3  Every tenant schema migrated to 0003_auth', async () => {

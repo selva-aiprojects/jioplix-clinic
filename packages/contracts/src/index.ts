@@ -131,6 +131,13 @@ export const sendOtpSchema = z.object({
 })
 export type SendOtpRequest = z.infer<typeof sendOtpSchema>
 
+export interface SendOtpResponse {
+  message: string
+  expiresIn: number
+  /** Present only in demo mode (allowlist-gated) so the code can be shown on-screen. */
+  demoCode?: string
+}
+
 export const verifyOtpSchema = z.object({
   clinic: z.string().min(2).max(63).regex(/^[a-z0-9-]+$/),
   phone: z.string().regex(/^[0-9+\-\s]{8,15}$/),

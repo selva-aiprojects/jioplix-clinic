@@ -4,7 +4,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import {
   AlertCircle, Baby, Eye, EyeOff, Fingerprint, HeartHandshake,
   Loader2, Lock, Phone, ScanFace, ShieldCheck, Stethoscope, Users, Pill,
-  CheckCircle2, KeyRound, ArrowLeft, Timer, MessageSquare,
+  CheckCircle2, KeyRound, ArrowLeft, Timer, MessageSquare, Microscope, Sparkles,
 } from 'lucide-react'
 import { ApiError } from '../lib/api'
 import { useAuth } from '../auth/useAuth'
@@ -23,6 +23,7 @@ const demoAccounts = [
   { label: 'Doctor', name: 'Dr. Priya', role: 'Consultant', phone: '+919800000101', icon: Stethoscope, color: 'text-primary-600 bg-primary-50 border-primary-100' },
   { label: 'Receptionist', name: 'Ramesh', role: 'Front Desk', phone: '+919800000201', icon: Users, color: 'text-accent-600 bg-accent-50 border-accent-100' },
   { label: 'Pharmacist', name: 'Sunita', role: 'Pharmacy', phone: '+919800000202', icon: Pill, color: 'text-info-600 bg-info-50 border-info-100' },
+  { label: 'Lab Technician', name: 'Vijay', role: 'Lab', phone: '+919800000203', icon: Microscope, color: 'text-success-600 bg-success-50 border-success-100' },
 ]
 
 const DEMO_PASSWORD = 'demo1234'
@@ -74,6 +75,7 @@ export default function Login() {
   const [otpExpiry, setOtpExpiry] = useState(0)
   const [otpSending, setOtpSending] = useState(false)
   const [otpVerifying, setOtpVerifying] = useState(false)
+  const [demoCode, setDemoCode] = useState<string | null>(null)
 
   const from = (location.state as { from?: string } | null)?.from ?? '/dashboard'
 
@@ -123,6 +125,7 @@ export default function Login() {
       if (!res.ok) throw new ApiError(data?.error?.code ?? 'UNKNOWN', res.status)
       setOtpSent(true)
       setOtpExpiry(data.data?.expiresIn ?? 300)
+      setDemoCode(data.data?.demoCode ?? null)
     } catch (err) {
       setError(friendlyError(err))
     } finally {
@@ -175,12 +178,14 @@ export default function Login() {
     setError(null)
     setOtpSent(false)
     setOtp('')
+    setDemoCode(null)
   }
 
   function resetOtpFlow() {
     setOtpSent(false)
     setOtp('')
     setError(null)
+    setDemoCode(null)
   }
 
   return (
@@ -322,6 +327,15 @@ export default function Login() {
                 {otpExpiry > 0 && (
                   <div className="mt-2 flex items-center gap-1.5 text-[11px] text-surface-400">
                     <Timer className="w-3 h-3" /> Code expires in {Math.floor(otpExpiry / 60)}:{String(otpExpiry % 60).padStart(2, '0')}
+                  </div>
+                )}
+                {demoCode && (
+                  <div className="mt-3 flex items-center gap-2.5 rounded-xl bg-info-50 border border-info-200 px-3.5 py-2.5">
+                    <Sparkles className="w-4 h-4 text-info-600 shrink-0" />
+                    <div className="text-[12px] leading-tight">
+                      <span className="block font-semibold text-info-700">Demo mode — enter this code</span>
+                      <span className="block font-mono text-[18px] font-bold tracking-[0.3em] text-info-700">{demoCode}</span>
+                    </div>
                   </div>
                 )}
               </div>

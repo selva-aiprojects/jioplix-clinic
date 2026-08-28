@@ -10,6 +10,11 @@ import { AppointmentsService } from './appointments/appointments.service.js'
 import { AuthController } from './auth/auth.controller.js'
 import { AuthService } from './auth/auth.service.js'
 import { OtpService } from './auth/otp.service.js'
+import { LocalOtpStore } from './auth/otp/local-otp.store.js'
+import { DemoOtpProvider } from './auth/otp/demo-otp.provider.js'
+import { Msg91OtpProvider } from './auth/otp/msg91-otp.provider.js'
+import { SupabaseOtpProvider } from './auth/otp/supabase-otp.provider.js'
+import { OtpProviderFactory } from './auth/otp/otp-provider.factory.js'
 import { JwtAuthGuard } from './auth/jwt-auth.guard.js'
 import { PermissionsGuard } from './auth/permissions.guard.js'
 import { EncountersModule } from './encounters/encounters.module.js'
@@ -63,6 +68,11 @@ import { SchedulerModule } from './scheduler/scheduler.module.js'
     AppointmentsService,
     AuthService,
     OtpService,
+    LocalOtpStore,
+    DemoOtpProvider,
+    Msg91OtpProvider,
+    SupabaseOtpProvider,
+    OtpProviderFactory,
     InventoryService,
     LabsService,
     ProceduresService,
