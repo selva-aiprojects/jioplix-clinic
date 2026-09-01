@@ -4,6 +4,10 @@ This doc is the operational partner to `phone-otp-provider-design.md`. It explai
 product needs an SMS aggregator + TRAI DLT registration, and how to light up the **MSG91** adapter that
 ships in `apps/api/src/auth/otp/msg91-otp.provider.ts`.
 
+> **Cost-free product (board constraint, 2026-08-28):** SMS/WhatsApp below is the **opt-in paid** tier.
+> The production default is **email OTP** at ₹0 (see `phone-otp-provider-design.md` §2/§7). A clinic only
+> pays for SMS when it explicitly opts in via `OTP_DELIVERY=msg91` (or `supabase`).
+
 ## 1. The landscape (read this first)
 
 | Question | Answer |
@@ -27,10 +31,12 @@ ships in `apps/api/src/auth/otp/msg91-otp.provider.ts`.
 
 ## 3. Wiring the MSG91 adapter (already in the codebase)
 
-Factory order: **Demo allowlist → MSG91 (if configured) → Supabase**. Setting MSG91 env **overrides**
-the Supabase/SMS-stub path for every non-allowlisted number — no code changes needed.
+Factory order: **Demo allowlist → `OTP_DELIVERY` (email default ₹0 · msg91 · supabase)**. Setting
+`OTP_DELIVERY=msg91` (with the MSG91 env below) routes every non-allowlisted number to MSG91 — no code
+changes needed:
 
 ```env
+OTP_DELIVERY=msg91            # choose the paid SMS tier explicitly
 MSG91_AUTH_KEY=<authkey from MSG91 -> API & Automation>
 MSG91_TEMPLATE_ID=<DLT-approved OTP template id>
 MSG91_OTP_LENGTH=6          # optional, 4–9
@@ -67,16 +73,18 @@ Twilio Verify** if you want the OTP engine fully owned by Supabase Auth. Every o
 
 ```bash
 node scripts/test-msg91.mjs            # 19/19 — offline, inline mock MSG91 server, ₹0
-node scripts/test-otp.mjs              # 26/26 — hermetic (never fires live SMS)
-node scripts/test-otp-live.mjs send nova +918825492600        # opt-in, real SMS
+node scripts/test-otp.mjs              # 26/26 — hermetic (real path = email console stub, never fires live)
+node scripts/test-otp-live.mjs send <clinic> <phone> --email    # ₹0 live round-trip (inbox/API log)
+node scripts/test-otp-live.mjs send nova +918825492600          # opt-in, real SMS (SQL cost note below)
 node scripts/test-otp-live.mjs verify nova +918825492600 123456
 ```
 
-`test-otp-live.mjs` refuses to run unless `ALLOW_LIVE_SMS=true` and forces `DEMO_OTP_ENABLED=false` so an
-allowlisted phone cannot mask a live call.
+`test-otp-live.mjs` defaults to **`--email` (₹0, no secrets needed)**; the paid `--msg91`/`--supabase`
+modes refuse to run unless `ALLOW_LIVE_SMS=true` and force `DEMO_OTP_ENABLED=false` so an allowlisted
+phone cannot mask a live call.
 
 ## 6. Cost control during trial/demo
 
-- Keep `DEMO_OTP_ENABLED=true` for demos (₹0, on-screen code).
+- Keep `OTP_DELIVERY=email` (the ₹0 default) for real logins; `DEMO_OTP_ENABLED=true` for on-screen demo codes.
 - Use live SMS only for real-number verification tests — each `signInWithOtp`/MSG91 send spends one OTP.
 - Never put a live test number on the demo allowlist unless you want its OTP on-screen instead.

@@ -72,7 +72,7 @@ void (async () => {
   const DATABASE_URL = process.env.DATABASE_URL || env.DATABASE_URL
   assert.ok(DATABASE_URL, 'DATABASE_URL required (set in .env or environment)')
 
-  console.log('\n=== OTP Provider Tests (Demo + Supabase/real path) ===\n')
+  console.log('\n=== OTP Provider Tests (Demo + email/real path) ===\n')
 
   // Boot the API ourselves (like smoke-test) with demo OTP enabled, capturing logs.
   apiProcess = spawn('node', ['dist/main.js'], {
@@ -82,8 +82,12 @@ void (async () => {
       DATABASE_URL,
       PORT: String(PORT),
       DEMO_OTP_ENABLED: 'true',
+      // Default delivery = email (₹0). Force hermetic: the email adapter's
+      // dev-mode console stub logs the code; no live RESEND call can fire.
+      OTP_DELIVERY: 'email',
+      RESEND_API_KEY: '',
       // Hermetic: never let a live provider fire real SMS from this test.
-      // The "real path" checks exercise the Supabase dev fallback (console stub)
+      // The "real path" checks exercise the email dev fallback (console stub)
       // regardless of any creds sitting in .env.
       SUPABASE_URL: '',
       SUPABASE_ANON_KEY: '',
@@ -150,15 +154,17 @@ void (async () => {
   ok('SECURITY: non-allowlisted number -> no demoCode (hard-routed to real path)',
     r.status === 200 && r.data?.data?.demoCode === undefined, JSON.stringify(r.data))
 
-  // ── ACTUAL PATH (Supabase provider; dev fallback without SUPABASE_URL) ──
+  // ── ACTUAL PATH (email provider — cost-free default) ───────────────────
   r = await sendOtpUntil({ clinic: ACTUAL_CLINIC, phone: ACTUAL_PHONE, wantDemo: false })
   ok('ACTUAL send-otp (sunrise, real path) -> 200', r?.status === 200, `got ${r?.status}`)
   ok('ACTUAL response has NO demoCode', r?.data?.data?.demoCode === undefined, JSON.stringify(r?.data))
   ok('ACTUAL response says OTP sent', r?.data?.data?.message === 'OTP sent to your phone number')
 
-  const stub = apiLog.match(new RegExp(`\\[SMS STUB\\] OTP for ${ACTUAL_PHONE.replace('+', '\\+')} @ ${ACTUAL_CLINIC}: (\\d{6})`))
-  ok('ACTUAL provider routed through SMS stub (server-logged code, never client-visible)',
-    !!stub, 'no [SMS STUB] line in API log')
+  const stub = apiLog.match(new RegExp(`\\[EMAIL STUB\\] OTP for ${ACTUAL_PHONE.replace('+', '\\+')} @ ${ACTUAL_CLINIC}: (\\d{6})`))
+  ok('ACTUAL provider routed through EMAIL console stub (code server-logged, never client-visible)',
+    !!stub, 'no [EMAIL STUB] line in API log')
+  ok('ACTUAL email stub never shows the code on the client response',
+    r?.data?.data?.demoCode === undefined)
 
   if (stub) {
     const code = stub[1]
@@ -189,9 +195,10 @@ void (async () => {
   // ── Hermeticity (informational) ─────────────────────────────────────────
   const hasSupabase = !!(env.SUPABASE_URL && (env.SUPABASE_ANON_KEY || env.SUPABASE_SERVICE_ROLE_KEY))
   const hasMsg91 = !!(env.MSG91_AUTH_KEY && env.MSG91_TEMPLATE_ID)
-  console.log(`\n    Supabase configured in .env: ${hasSupabase ? 'YES' : 'NO'}`)
+  console.log(`\n    Delivery engine:            email (OTP_DELIVERY default; forced in this run)`)
+  console.log(`    Supabase configured in .env: ${hasSupabase ? 'YES' : 'NO'}`)
   console.log(`    MSG91 configured in .env:    ${hasMsg91 ? 'YES' : 'NO'}`)
-  console.log('    This run is HERMETIC: real-path checks used the local dev fallback; no live SMS sent.')
+  console.log('    This run is HERMETIC: real-path checks used the email dev console stub; no live SMS/email sent.')
 
   console.log(`\n=== ${passed}/${passed + failed} OTP provider tests passed ===\n`)
 })().catch((e) => {

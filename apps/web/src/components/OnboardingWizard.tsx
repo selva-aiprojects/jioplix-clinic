@@ -214,7 +214,7 @@ function StepDoctorSetup({
           type="text"
           value={data.name}
           onChange={(e) => onChange({ ...data, name: e.target.value })}
-          placeholder="e.g. Dr. Priya Sharma"
+          placeholder="e.g. Dr. Name"
           className={`w-full px-3.5 py-2.5 text-[13px] font-medium bg-surface-50/50 border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 focus:bg-white transition-all placeholder:text-surface-400 ${errors.name ? 'border-danger-300' : 'border-surface-200'}`}
         />
         {errors.name && <p className="text-[11px] text-danger-600 mt-1">{errors.name}</p>}

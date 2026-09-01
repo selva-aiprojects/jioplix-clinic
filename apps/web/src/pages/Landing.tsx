@@ -166,7 +166,7 @@ export default function Landing() {
               <div className="flex items-center justify-between border-b border-white/10 pb-5">
                 <div>
                   <p className="text-[11px] font-semibold uppercase tracking-[.18em] text-accent-300">Hospital command center</p>
-                  <h2 className="mt-2 text-2xl font-bold">Good morning, Dr. Priya</h2>
+                  <h2 className="mt-2 text-2xl font-bold">Good morning, Doctor</h2>
                 </div>
                 <div className="rounded-xl bg-white/10 p-2.5"><ShieldCheck className="h-5 w-5 text-accent-300" /></div>
               </div>

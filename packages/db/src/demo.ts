@@ -225,10 +225,13 @@ export async function seedDemoData(
     for (const u of [...doctors, ...staff]) {
       const id = randomUUID()
       if (doctors.includes(u)) doctorIds.push(id)
+      const email = `${u.fullName.toLowerCase().replace(/[^a-z0-9]+/g, '.').replace(/^\.+|\.+$/g, '')}@${schemaName}.demo.jioplix`
       await client.query(
-        `INSERT INTO users (id, full_name, phone, specialty, password_hash) VALUES ($1, $2, $3, $4, $5)
-         ON CONFLICT (phone) DO UPDATE SET password_hash = EXCLUDED.password_hash`,
-        [id, u.fullName, u.phone, u.specialty ?? null, passwordHash],
+        `INSERT INTO users (id, full_name, phone, email, specialty, password_hash) VALUES ($1, $2, $3, $4, $5, $6)
+         ON CONFLICT (phone) DO UPDATE SET
+           password_hash = EXCLUDED.password_hash,
+           email = COALESCE(users.email, EXCLUDED.email)`,
+        [id, u.fullName, u.phone, email, u.specialty ?? null, passwordHash],
       )
       const userId = (
         await client.query<{ id: string }>(`SELECT id FROM users WHERE phone = $1`, [u.phone])

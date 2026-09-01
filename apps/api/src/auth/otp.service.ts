@@ -36,7 +36,7 @@ export class OtpService {
     const schemaName = tenants[0].schema_name
 
     const provider = this.providers.resolve({ slug, phone })
-    const result = await provider.requestOtp({ schemaName, slug, phone })
+    const result = await provider.requestOtp({ schemaName, slug, phone, clinicName: tenants[0].name })
 
     if (!result.delivered) {
       return { message: result.message, expiresIn: result.waitSeconds }

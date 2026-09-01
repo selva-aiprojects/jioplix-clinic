@@ -1,6 +1,5 @@
-import { useCallback, useEffect, useState } from 'react'
-import { createWorker } from 'tesseract.js'
-import { Link, useParams } from 'react-router-dom'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { Link, useBlocker, useParams } from 'react-router-dom'
 import {
   Stethoscope, ClipboardList, Pill, FileText,
   ArrowRight, CheckCircle2, Sparkles, AlertTriangle,
@@ -24,6 +23,7 @@ import { recordVitalsSnapshot } from '../lib/vitalsHistory'
 import { getPrintLanguage, PRINT_LANGUAGES } from '../lib/printI18n'
 import { exportPrescriptionPdf } from '../lib/pdfExport'
 import { pushNotification } from '../lib/notifications'
+import { cacheGet, cacheInvalidate } from '../lib/queryCache'
 import { useAuth } from '../auth/useAuth'
 
 const genderLabel: Record<string, string> = { M: 'Male', F: 'Female', O: 'Other' }
@@ -116,7 +116,8 @@ export default function Consultation() {
   const [printLang, setPrintLang] = useState('en')
 
   const refreshRx = useCallback(async (encId: string) => {
-    try { setRxList(await listPrescriptionsByEncounter(encId)) } catch { setRxList([]) }
+    cacheInvalidate(`prescriptions:enc:${encId}`)
+    try { setRxList(await cacheGet(`prescriptions:enc:${encId}`, () => listPrescriptionsByEncounter(encId))) } catch { setRxList([]) }
   }, [])
 
   useEffect(() => {
@@ -126,7 +127,7 @@ export default function Consultation() {
       setLoading(true)
       setLoadError(null)
       try {
-        const enc = await getEncounter(encounterId!)
+        const enc = await cacheGet(`encounter:${encounterId!}`, () => getEncounter(encounterId!))
         if (cancelled) return
         setEncounter(enc)
         setChiefComplaint(enc.chiefComplaint ?? '')
@@ -137,10 +138,13 @@ export default function Consultation() {
         setFollowUpNotes(enc.followUpNotes ?? '')
         setDirty(false)
         try {
-          const [p, hist] = await Promise.all([getPatient(enc.patientId), listPatientEncounters(enc.patientId)])
-          if (!cancelled) { setPatient(p); setHistory(hist.filter(h => h.id !== enc.id)) }
+          const [p, hist, rx] = await Promise.all([
+            cacheGet(`patient:${enc.patientId}`, () => getPatient(enc.patientId)),
+            cacheGet(`patient-encounters:${enc.patientId}`, () => listPatientEncounters(enc.patientId)),
+            cacheGet(`prescriptions:enc:${enc.id}`, () => listPrescriptionsByEncounter(enc.id)),
+          ])
+          if (!cancelled) { setPatient(p); setHistory(hist.filter(h => h.id !== enc.id)); setRxList(rx) }
         } catch { /* secondary data optional */ }
-        await refreshRx(enc.id)
       } catch {
         if (!cancelled) setLoadError('ENCOUNTER_NOT_FOUND')
       } finally {
@@ -149,7 +153,7 @@ export default function Consultation() {
     }
     load()
     return () => { cancelled = true }
-  }, [encounterId, refreshRx])
+  }, [encounterId])
 
   const locked = encounter?.isLocked ?? false
 
@@ -171,21 +175,51 @@ export default function Consultation() {
     }
   }
 
+  const persistDraft = useCallback(async () => {
+    if (!encounter || locked) return
+    await updateEncounter(encounter.id, {
+      chiefComplaint, historyPresentIllness: hpi,
+      examinationFindings: examination, clinicalNotes,
+      followUpDate: followUpDate || undefined,
+      followUpNotes: followUpNotes || undefined,
+    })
+    cacheInvalidate(`encounter:${encounter.id}`)
+    setDirty(false)
+  }, [encounter, locked, chiefComplaint, hpi, examination, clinicalNotes, followUpDate, followUpNotes])
+
   const saveDraft = () =>
     run(async () => {
-      await updateEncounter(encounter!.id, {
-        chiefComplaint, historyPresentIllness: hpi,
-        examinationFindings: examination, clinicalNotes,
-        followUpDate: followUpDate || undefined,
-        followUpNotes: followUpNotes || undefined,
-      })
-      setDirty(false)
+      await persistDraft()
     }, 'Draft saved')
+
+  const autosaveBusyRef = useRef(false)
+  useEffect(() => {
+    if (!dirty || locked || !encounter) return
+    const t = setTimeout(() => {
+      void (async () => {
+        if (autosaveBusyRef.current) return
+        autosaveBusyRef.current = true
+        try { await persistDraft() } catch { /* keep dirty so the next edit retries */ } finally { autosaveBusyRef.current = false }
+      })()
+    }, 1200)
+    return () => clearTimeout(t)
+  }, [dirty, locked, encounter, persistDraft])
+
+  const blocker = useBlocker(() => dirty)
+  useEffect(() => {
+    if (blocker.state !== 'blocked' || !dirty) return
+    const leave = window.confirm('You have unsaved changes. Auto-save and leave?')
+    if (leave) {
+      void persistDraft().finally(() => blocker.proceed())
+    } else {
+      blocker.reset()
+    }
+  }, [blocker, dirty, persistDraft])
 
   const recordVitals = () =>
     run(async () => {
       const num = (v: string) => (v.trim() === '' ? undefined : Number(v))
-      await addVitals(encounter!.id, {
+      const newVitals = await addVitals(encounter!.id, {
         bpSystolic: num(vitalsDraft.bpSystolic),
         bpDiastolic: num(vitalsDraft.bpDiastolic),
         pulse: num(vitalsDraft.pulse),
@@ -205,22 +239,25 @@ export default function Consultation() {
       }
       setVitalsDraft(emptyVitals)
       setShowVitalsForm(false)
-      setEncounter(await getEncounter(encounter!.id))
+      cacheInvalidate(`encounter:${encounter!.id}`)
+      setEncounter(prev => prev ? { ...prev, vitals: newVitals } : prev)
       setNotice('Vitals recorded')
     })
 
   const submitDiagnosis = () =>
     run(async () => {
       if (!diagCode.trim() || !diagName.trim()) throw new Error('VALIDATION_FAILED')
-      await addDiagnosis(encounter!.id, { icd10Code: diagCode.trim(), icd10Name: diagName.trim(), type: diagType })
+      const newDiag = await addDiagnosis(encounter!.id, { icd10Code: diagCode.trim(), icd10Name: diagName.trim(), type: diagType })
       setDiagCode(''); setDiagName(''); setDiagType('primary')
-      setEncounter(await getEncounter(encounter!.id))
+      cacheInvalidate(`encounter:${encounter!.id}`)
+      setEncounter(prev => prev ? { ...prev, diagnoses: [...prev.diagnoses, newDiag] } : prev)
     }, 'Diagnosis added')
 
   const startPrescription = () =>
     run(async () => {
-      await createPrescription({ encounterId: encounter!.id, patientId: encounter!.patientId })
-      await refreshRx(encounter!.id)
+      const created = await createPrescription({ encounterId: encounter!.id, patientId: encounter!.patientId })
+      cacheInvalidate(`prescriptions:enc:${encounter!.id}`)
+      setRxList(prev => [...prev, created])
     }, 'Prescription created')
 
   const ensureDraftRx = async (): Promise<Prescription | null> => {
@@ -228,10 +265,9 @@ export default function Consultation() {
     const fresh = await listPrescriptionsByEncounter(encounter.id)
     let draft: Prescription | null = fresh.find(r => r.status === 'draft') ?? null
     if (!draft) {
-      await createPrescription({ encounterId: encounter.id, patientId: encounter.patientId })
-      const next = await listPrescriptionsByEncounter(encounter.id)
-      setRxList(next)
-      draft = next.find(r => r.status === 'draft') ?? null
+      draft = await createPrescription({ encounterId: encounter.id, patientId: encounter.patientId })
+      cacheInvalidate(`prescriptions:enc:${encounter.id}`)
+      setRxList([draft])
     } else {
       setRxList(fresh)
     }
@@ -256,7 +292,7 @@ export default function Consultation() {
       if (duplicateMedicine(rx.items, item)) {
         throw new Error(`"${item.drugName}" is already on this prescription.`)
       }
-      await addPrescriptionItem(rx.id, {
+      const created = await addPrescriptionItem(rx.id, {
         drugName: item.drugName.trim(),
         genericName: item.genericName?.trim() || undefined,
         strength: item.strength?.trim() || undefined,
@@ -266,7 +302,7 @@ export default function Consultation() {
         durationDays: item.durationDays != null ? Number(item.durationDays) : undefined,
         instructions: item.instructions?.trim() || undefined,
       })
-      await refreshRx(encounter!.id)
+      setRxList(prev => prev.map(r => r.id === rx.id ? { ...r, items: [...r.items, created] } : r))
     })
 
   const addCurrentRx = () =>
@@ -280,10 +316,15 @@ export default function Consultation() {
       if (!items.length) return
       let rx = await ensureDraftRx()
       if (!rx) return
-      let added = 0
-      for (const it of items) {
-        if (duplicateMedicine(rx.items, it)) continue
-        const created = await addPrescriptionItem(rx.id, {
+      const currentItems = rx.items
+      const rxId = rx.id
+      const uniqueItems = items.filter(it => !duplicateMedicine(currentItems, it))
+      if (!uniqueItems.length) {
+        setNotice('All template medicines are already on this prescription.')
+        return
+      }
+      const created = await Promise.all(
+        uniqueItems.map(it => addPrescriptionItem(rxId, {
           drugName: it.drugName.trim(),
           genericName: it.genericName?.trim() || undefined,
           strength: it.strength?.trim() || undefined,
@@ -292,13 +333,13 @@ export default function Consultation() {
           frequency: it.frequency.trim(),
           durationDays: it.durationDays != null ? Number(it.durationDays) : undefined,
           instructions: it.instructions?.trim() || undefined,
-        })
-        rx = { ...rx, items: [...rx.items, created] }
-        added++
-      }
+        })),
+      )
+      rx = { ...rx, items: [...rx.items, ...created] }
+      setRxList(prev => prev.map(r => r.id === rx.id ? rx : r))
       await refreshRx(encounter!.id)
       setActiveTab('rx')
-      setNotice(added ? `Added ${added} item${added > 1 ? 's' : ''} from template` : 'All template medicines are already on this prescription.')
+      setNotice(`Added ${created.length} item${created.length > 1 ? 's' : ''} from template`)
     })
 
   const removePrescriptionItem = (itemId: string) =>
@@ -328,6 +369,7 @@ export default function Consultation() {
     setRecordName(file.name)
     setOcrStatus('reading')
     try {
+      const { createWorker } = await import('tesseract.js')
       const worker = await createWorker('eng')
       const result = await worker.recognize(file)
       await worker.terminate()
@@ -431,8 +473,12 @@ export default function Consultation() {
 
   const signAndClose = () =>
     run(async () => {
-      await lockEncounter(encounter!.id)
-      setEncounter(await getEncounter(encounter!.id))
+      const result = await lockEncounter(encounter!.id)
+      cacheInvalidate(`encounter:${encounter!.id}`)
+      cacheInvalidate(`patient-encounters:${encounter!.patientId}`)
+      cacheInvalidate(`prescriptions:enc:${encounter!.id}`)
+      setDirty(false)
+      setEncounter(prev => prev ? { ...prev, isLocked: result.isLocked, lockedAt: result.lockedAt ?? prev.lockedAt, lockedBy: prev.lockedBy } : prev)
       pushNotification({ category: 'clinical', title: 'Encounter signed', body: `Consultation for ${encounter!.patientName} was signed and closed.`, time: 'Just now' })
     }, 'Encounter signed and closed')
 

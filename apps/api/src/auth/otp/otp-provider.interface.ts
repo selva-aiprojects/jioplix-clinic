@@ -14,6 +14,8 @@ export interface OtpRequestContext {
   slug: string
   /** E.164-ish phone number as submitted by the client. */
   phone: string
+  /** Human-readable tenant name (for delivery copy, e.g. email subject). */
+  clinicName?: string
 }
 
 export interface OtpVerifyContext {

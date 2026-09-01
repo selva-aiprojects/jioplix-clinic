@@ -12,6 +12,7 @@ import {
   setSession,
   setSessionExpiredHandler,
 } from '../lib/api'
+import { cacheClear } from '../lib/queryCache'
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<AuthStatus>(() =>
@@ -21,6 +22,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     setSessionExpiredHandler(() => {
+      cacheClear()
       setUser(null)
       setStatus('anonymous')
     })
@@ -38,6 +40,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       })
       .catch(() => {
         if (cancelled) return
+        cacheClear()
         setSession(null)
         setUser(null)
         setStatus('anonymous')
@@ -60,6 +63,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(async (): Promise<void> => {
     await logoutRequest()
+    cacheClear()
     setUser(null)
     setStatus('anonymous')
   }, [])

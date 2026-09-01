@@ -15,8 +15,6 @@ import {
 import type { Appointment, Patient, DoctorOption } from '../lib/api'
 import { useAuth } from '../auth/useAuth'
 
-const doctors = ['All Doctors', 'Dr. Priya', 'Dr. Anand']
-
 const statusConfig: Record<string, { bg: string; text: string; icon: typeof CheckCircle2; label: string }> = {
   'completed': { bg: 'bg-success-50 border-success-200', text: 'text-success-700', icon: CheckCircle2, label: 'Completed' },
   'in_consultation': { bg: 'bg-primary-50 border-primary-200', text: 'text-primary-700', icon: Stethoscope, label: 'In Progress' },
@@ -164,6 +162,7 @@ export default function Appointments() {
   const [calAppts, setCalAppts] = useState<Appointment[]>([])
   const [loadingCal, setLoadingCal] = useState(false)
   const [selectedDoctor, setSelectedDoctor] = useState('All Doctors')
+  const [filterDoctors, setFilterDoctors] = useState<string[]>(['All Doctors'])
   const [loading, setLoading] = useState(true)
   const [actionError, setActionError] = useState<string | null>(null)
   const [busyId, setBusyId] = useState<string | null>(null)
@@ -193,6 +192,14 @@ export default function Appointments() {
     load()
     return () => { cancelled = true }
   }, [today])
+
+  useEffect(() => {
+    let cancelled = false
+    listDoctors()
+      .then(d => { if (!cancelled) setFilterDoctors(['All Doctors', ...d.map(doc => doc.fullName)]) })
+      .catch(() => { /* keep the default filter list */ })
+    return () => { cancelled = true }
+  }, [])
 
   useEffect(() => {
     if (searchParams.get('new') === '1') {
@@ -332,7 +339,7 @@ export default function Appointments() {
   }
 
   const applyDoctorFilter = (list: Appointment[]) =>
-    selectedDoctor === 'All Doctors' ? list : list.filter(a => a.doctorName.startsWith(selectedDoctor))
+    selectedDoctor === 'All Doctors' ? list : list.filter(a => a.doctorName === selectedDoctor)
 
   const filtered = applyDoctorFilter(appointments)
 
@@ -382,7 +389,7 @@ export default function Appointments() {
       {/* Filters */}
       <div className="flex flex-col md:flex-row md:items-center gap-4">
         <div className="flex gap-1 bg-surface-100 rounded-xl p-1">
-          {doctors.map(d => (
+          {filterDoctors.map(d => (
             <button
               key={d}
               onClick={() => setSelectedDoctor(d)}

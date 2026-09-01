@@ -12,6 +12,7 @@ import { AuthService } from './auth/auth.service.js'
 import { OtpService } from './auth/otp.service.js'
 import { LocalOtpStore } from './auth/otp/local-otp.store.js'
 import { DemoOtpProvider } from './auth/otp/demo-otp.provider.js'
+import { EmailOtpProvider } from './auth/otp/email-otp.provider.js'
 import { Msg91OtpProvider } from './auth/otp/msg91-otp.provider.js'
 import { SupabaseOtpProvider } from './auth/otp/supabase-otp.provider.js'
 import { OtpProviderFactory } from './auth/otp/otp-provider.factory.js'
@@ -29,6 +30,8 @@ import { ProceduresController } from './procedures/procedures.controller.js'
 import { ProceduresService } from './procedures/procedures.service.js'
 import { PharmacyController } from './pharmacy/pharmacy.controller.js'
 import { PharmacyService } from './pharmacy/pharmacy.service.js'
+import { TeamController } from './team/team.controller.js'
+import { TeamService } from './team/team.service.js'
 import { DrugMasterModule } from './drug-master/drug-master.module.js'
 import { Icd10Module } from './icd10/icd10.module.js'
 import { RxTemplatesModule } from './rx-templates/rx-templates.module.js'
@@ -61,6 +64,7 @@ import { SchedulerModule } from './scheduler/scheduler.module.js'
     LabsController,
     ProceduresController,
     PharmacyController,
+    TeamController,
   ],
   providers: [
     TenantGuard,
@@ -70,6 +74,7 @@ import { SchedulerModule } from './scheduler/scheduler.module.js'
     OtpService,
     LocalOtpStore,
     DemoOtpProvider,
+    EmailOtpProvider,
     Msg91OtpProvider,
     SupabaseOtpProvider,
     OtpProviderFactory,
@@ -77,6 +82,7 @@ import { SchedulerModule } from './scheduler/scheduler.module.js'
     LabsService,
     ProceduresService,
     PharmacyService,
+    TeamService,
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: PermissionsGuard },
   ],

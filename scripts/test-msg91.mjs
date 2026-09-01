@@ -143,6 +143,7 @@ void (async () => {
       DATABASE_URL,
       PORT: String(API_PORT),
       DEMO_OTP_ENABLED: 'true',
+      OTP_DELIVERY: 'msg91',
       SUPABASE_URL: '',
       SUPABASE_ANON_KEY: '',
       SUPABASE_SERVICE_ROLE_KEY: '',

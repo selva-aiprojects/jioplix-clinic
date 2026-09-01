@@ -276,7 +276,7 @@ export default function Register() {
                 <label className="block text-[12px] font-semibold text-surface-700 mb-1.5">Full name</label>
                 <div className="relative">
                   <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-surface-400 pointer-events-none" />
-                  <input type="text" placeholder="Dr. Priya Sharma" value={adminName} onChange={(e) => setAdminName(e.target.value)} required
+                  <input type="text" placeholder="Full name" value={adminName} onChange={(e) => setAdminName(e.target.value)} required
                     className="w-full pl-10 pr-3.5 py-2.5 text-[13px] font-medium bg-surface-50/50 border border-surface-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 focus:bg-white transition-all placeholder:text-surface-400" />
                 </div>
               </div>

@@ -570,6 +570,20 @@ export async function listDoctors(): Promise<DoctorOption[]> {
   return api<DoctorOption[]>('/appointments/doctors')
 }
 
+export interface TeamMember {
+  id: string
+  fullName: string
+  phone: string
+  email: string | null
+  specialty: string | null
+  status: string
+  roles: string[]
+}
+
+export async function listTeam(): Promise<TeamMember[]> {
+  return api<TeamMember[]>('/team')
+}
+
 export interface AppointmentCreateInput {
   patientId: string
   doctorId: string
