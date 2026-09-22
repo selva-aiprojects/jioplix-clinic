@@ -8,6 +8,7 @@ export interface AuthContextValue {
   user: SessionUser | null
   login: (clinic: string, phone: string, password: string) => Promise<SessionUser>
   logout: () => Promise<void>
+  refreshSession: () => Promise<void>
   hasPermission: (required: string) => boolean
 }
 

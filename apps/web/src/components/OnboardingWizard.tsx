@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../lib/api'
+import { useAuth } from '../auth/useAuth'
 import {
   Building2, UserPlus, Users, Puzzle, CheckCircle2,
   ChevronRight, ChevronLeft, Stethoscope, Pill, FlaskConical,
@@ -413,6 +414,7 @@ function StepComplete({ onGoDashboard }: { onGoDashboard: () => void }) {
 
 export default function OnboardingWizard() {
   const navigate = useNavigate()
+  const { refreshSession } = useAuth()
   const [step, setStep] = useState(0)
   const [submitting, setSubmitting] = useState(false)
 
@@ -500,7 +502,11 @@ export default function OnboardingWizard() {
   }
 
   function handleGoDashboard() {
-    navigate('/dashboard', { replace: true })
+    // Refresh the session so the dashboard shows the newly created clinic name,
+    // not the stale identity from the original login token.
+    refreshSession().finally(() => {
+      navigate('/dashboard', { replace: true })
+    })
   }
 
   return (

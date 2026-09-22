@@ -68,6 +68,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setStatus('anonymous')
   }, [])
 
+  const refreshSession = useCallback(async (): Promise<void> => {
+    try {
+      const fresh = await api<SessionUser>('/auth/me')
+      const session = getSession()
+      if (session) setSession({ ...session, user: fresh })
+      setUser(fresh)
+      setStatus('authenticated')
+    } catch {
+      // If refresh fails, leave existing session intact
+    }
+  }, [])
+
   const hasPermission = useCallback(
     (required: string): boolean => {
       if (!user) return false
@@ -77,8 +89,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   )
 
   const value = useMemo(
-    () => ({ status, user, login, logout, hasPermission }),
-    [status, user, login, logout, hasPermission],
+    () => ({ status, user, login, logout, refreshSession, hasPermission }),
+    [status, user, login, logout, refreshSession, hasPermission],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
