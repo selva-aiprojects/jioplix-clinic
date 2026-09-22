@@ -10,6 +10,8 @@
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
+    "@cybelinx/core": "*",
+    "@cybelinx/sdk": "*",
     "@jioplix/contracts": "*",
     "@jioplix/db": "*",
     "@nestjs/common": "^11.1.9",

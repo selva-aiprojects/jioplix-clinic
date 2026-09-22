@@ -1,9 +1,10 @@
-import { BadRequestException, Body, Controller, Get, HttpCode, HttpStatus, Post } from '@nestjs/common'
+import { BadRequestException, Body, Controller, Get, HttpCode, HttpStatus, Post, UnauthorizedException } from '@nestjs/common'
 import type { AuthContext } from '@jioplix/contracts'
 import { loginSchema, refreshSchema, sendOtpSchema, verifyOtpSchema } from '@jioplix/contracts'
 import { AuthService } from './auth.service.js'
 import { OtpService } from './otp.service.js'
 import { CurrentAuth, Public } from './auth.decorators.js'
+import { verifySsoLaunchToken } from '@cybelinx/sdk'
 
 @Controller('auth')
 export class AuthController {
@@ -67,5 +68,30 @@ export class AuthController {
   @Get('me')
   async me(@CurrentAuth() auth: AuthContext) {
     return { data: await this.auth.me(auth) }
+  }
+
+  /**
+   * Cybelinx Platform SSO — accepts a signed launch token issued by the
+   * Cybelinx central platform and returns a local Jioplix session.
+   * The CYBELINX_SSO_SECRET env var must match the secret configured on
+   * the Cybelinx platform side.
+   */
+  @Public()
+  @Post('sso/exchange')
+  @HttpCode(HttpStatus.OK)
+  async ssoExchange(@Body() body: unknown) {
+    const { token } = body as { token?: string }
+    if (!token) throw new BadRequestException('SSO_TOKEN_REQUIRED')
+    const secret = process.env.CYBELINX_SSO_SECRET
+    if (!secret) throw new BadRequestException('SSO_NOT_CONFIGURED')
+    let payload
+    try {
+      payload = verifySsoLaunchToken(token, secret)
+    } catch {
+      throw new UnauthorizedException('SSO_TOKEN_INVALID')
+    }
+    // Map the Cybelinx sub (user identifier) to a local session
+    const session = await this.auth.loginBySsoPayload(payload)
+    return { data: session }
   }
 }

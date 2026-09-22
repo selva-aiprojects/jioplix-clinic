@@ -7,9 +7,10 @@ import { PageHeader, Button } from '../components/ui'
 import { listInvoices, listPatients, createInvoice, addPayment, getInvoice } from '../lib/api'
 import type { Invoice as InvoiceRow, Patient } from '../lib/api'
 import { exportInvoicePdf } from '../lib/pdfExport'
+import { formatCurrency } from '@cybelinx/core'
 
 function formatPaise(paise: number): string {
-  return `₹${(paise / 100).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`
+  return formatCurrency(paise / 100, 'INR')
 }
 
 const statusConfig: Record<string, { bg: string; text: string; icon: typeof CheckCircle2; label: string }> = {

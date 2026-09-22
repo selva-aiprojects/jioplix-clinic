@@ -7,6 +7,7 @@ import {
   Bookmark, Languages, ScanLine, Download, X,
 } from 'lucide-react'
 import { PageHeader, Button } from '../components/ui'
+import { SmartTextEditor } from '@cybelinx/ui'
 import Autocomplete from '../components/Autocomplete'
 import RxTemplatePicker from '../components/RxTemplatePicker'
 import {
@@ -510,8 +511,6 @@ export default function Consultation() {
     { label: 'Signed', done: locked, icon: CheckCircle2 },
   ]
 
-  const field =
-    'w-full px-4 py-3 text-[13px] bg-surface-50 border border-surface-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400 resize-none transition-all placeholder:text-surface-400 disabled:opacity-60'
   const inputCls =
     'w-full px-3 py-2 text-[13px] bg-white border border-surface-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400 disabled:opacity-60'
 
@@ -657,19 +656,47 @@ export default function Consultation() {
               <div className="bg-white rounded-2xl border border-surface-100 shadow-healthcare p-5 space-y-4">
                 <div>
                   <label className="text-[13px] font-semibold text-surface-700 block mb-2">Chief Complaint</label>
-                  <textarea value={chiefComplaint} disabled={!canUpdateSoap || locked} onChange={e => { setChiefComplaint(e.target.value); setDirty(true) }} placeholder="Presenting complaint and duration…" className={`${field} h-20`} />
+                  <SmartTextEditor
+                    domain="healthcare"
+                    value={chiefComplaint}
+                    onChange={v => { setChiefComplaint(v); setDirty(true) }}
+                    placeholder="Presenting complaint and duration…"
+                    minRows={3}
+                    disabled={!canUpdateSoap || locked}
+                  />
                 </div>
                 <div>
                   <label className="text-[13px] font-semibold text-surface-700 block mb-2">History of Present Illness</label>
-                  <textarea value={hpi} disabled={!canUpdateSoap || locked} onChange={e => { setHpi(e.target.value); setDirty(true) }} placeholder="Onset, progression, associated symptoms…" className={`${field} h-20`} />
+                  <SmartTextEditor
+                    domain="healthcare"
+                    value={hpi}
+                    onChange={v => { setHpi(v); setDirty(true) }}
+                    placeholder="Onset, progression, associated symptoms…"
+                    minRows={3}
+                    disabled={!canUpdateSoap || locked}
+                  />
                 </div>
                 <div>
                   <label className="text-[13px] font-semibold text-surface-700 block mb-2">Examination Notes</label>
-                  <textarea value={examination} disabled={!canUpdateSoap || locked} onChange={e => { setExamination(e.target.value); setDirty(true) }} placeholder="General exam, systemic findings…" className={`${field} h-20`} />
+                  <SmartTextEditor
+                    domain="healthcare"
+                    value={examination}
+                    onChange={v => { setExamination(v); setDirty(true) }}
+                    placeholder="General exam, systemic findings…"
+                    minRows={3}
+                    disabled={!canUpdateSoap || locked}
+                  />
                 </div>
                 <div>
                   <label className="text-[13px] font-semibold text-surface-700 block mb-2">Clinical Notes</label>
-                  <textarea value={clinicalNotes} disabled={!canUpdateSoap || locked} onChange={e => { setClinicalNotes(e.target.value); setDirty(true) }} placeholder="Assessment, plan, advice…" className={`${field} h-16`} />
+                  <SmartTextEditor
+                    domain="healthcare"
+                    value={clinicalNotes}
+                    onChange={v => { setClinicalNotes(v); setDirty(true) }}
+                    placeholder="Assessment, plan, advice…"
+                    minRows={2}
+                    disabled={!canUpdateSoap || locked}
+                  />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>

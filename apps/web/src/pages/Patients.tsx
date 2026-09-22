@@ -9,6 +9,7 @@ import {
 import { PageHeader, Button } from '../components/ui'
 import { createPatient, describeApiError, listPatients } from '../lib/api'
 import type { Patient } from '../lib/api'
+import { validateABHA } from '@cybelinx/core'
 
 const tabs = ['All Patients', 'Recent', 'Follow-up Due', 'Chronic']
 
@@ -47,7 +48,7 @@ function validatePatientForm(f: PatientForm): Record<string, string> {
   if (!f.phone.trim()) errs.phone = 'Phone number is required'
   else if (!PHONE_RE.test(f.phone.trim())) errs.phone = 'Enter a valid phone (8–15 digits)'
   if (f.email.trim() && !EMAIL_RE.test(f.email.trim())) errs.email = 'Enter a valid email address'
-  if (f.abhaNumber.trim().length > 36) errs.abhaNumber = 'Maximum 36 characters'
+  if (f.abhaNumber.trim() && !validateABHA(f.abhaNumber.trim())) errs.abhaNumber = 'Invalid ABHA number (must be 14 digits)'
   return errs
 }
 

@@ -329,4 +329,51 @@ export class AuthService {
       },
     }
   }
+
+  /**
+   * Issues a Jioplix session for a user authenticated via Cybelinx SSO.
+   * Resolves the tenant from the CYBELINX_TENANT_SLUG env var (or the tenant
+   * whose id matches the Cybelinx tenant), then looks up the user by email.
+   */
+  async loginBySsoPayload(payload: { cybelinx_tenant_id: string; email: string; roles?: string[] }): Promise<SessionTokens> {
+    // The operator maps a Cybelinx tenant_id → Jioplix clinic slug via env var.
+    // Example: CYBELINX_TENANT_MAP='{"cx_abc":"my-clinic"}'
+    const slugMap: Record<string, string> = (() => {
+      try { return JSON.parse(process.env.CYBELINX_TENANT_MAP ?? '{}') } catch { return {} }
+    })()
+    const slug = slugMap[payload.cybelinx_tenant_id] ?? process.env.CYBELINX_DEFAULT_SLUG
+    if (!slug) throw new UnauthorizedException('SSO_TENANT_NOT_MAPPED')
+
+    const tenant = await this.resolveTenantBySlug(slug)
+
+    // Find the local user by email
+    const found = await this.db.withTenant(tenant.schema_name, async (db) => {
+      const [user] = await db
+        .select()
+        .from(users)
+        .where(and(eq(users.email, payload.email), eq(users.status, 'active')))
+        .limit(1)
+      if (!user) return null
+
+      const roleRows = await db
+        .select({ key: roles.key, permissions: roles.permissions })
+        .from(userBranchRoles)
+        .innerJoin(roles, eq(userBranchRoles.roleId, roles.id))
+        .where(eq(userBranchRoles.userId, user.id))
+
+      const roleKeys = [...new Set(roleRows.map((r) => r.key))]
+      const permissions = [...new Set(roleRows.flatMap((r) => r.permissions))]
+
+      return {
+        ctx: { userId: user.id, tenantId: tenant.id, schemaName: tenant.schema_name, slug: tenant.slug, roles: roleKeys, permissions },
+        fullName: user.fullName,
+        specialty: user.specialty,
+        phone: user.phone,
+      }
+    })
+
+    if (!found) throw new UnauthorizedException('SSO_USER_NOT_FOUND')
+    return this.issueSession(found.ctx, tenant, found.fullName, found.specialty, found.phone)
+  }
 }
+
