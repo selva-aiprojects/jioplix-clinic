@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { api } from '../lib/api'
 import {
   Building2, UserPlus, Users, Puzzle, CheckCircle2,
   ChevronRight, ChevronLeft, Stethoscope, Pill, FlaskConical,
@@ -475,10 +476,9 @@ export default function OnboardingWizard() {
         receptionist,
         addons: selectedAddons,
       }
-      fetch('/api/onboarding/complete', {
+      api('/onboarding/complete', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+        body: payload,
       }).catch(() => {}).finally(() => {
         localStorage.setItem('jioplix.onboarding.completed', 'true')
         setSubmitting(false)

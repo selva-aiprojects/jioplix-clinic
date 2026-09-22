@@ -13,7 +13,7 @@ import gu from './locales/gu.json'
 import ml from './locales/ml.json'
 import or from './locales/or.json'
 import pa from './locales/pa.json'
-import as from './locales/as.json'
+import asLocale from './locales/as.json'
 import ur from './locales/ur.json'
 import ne from './locales/ne.json'
 
@@ -33,7 +33,7 @@ i18n
       ml: { translation: ml },
       or: { translation: or },
       pa: { translation: pa },
-      as: { translation: as },
+      as: { translation: asLocale },
       ur: { translation: ur },
       ne: { translation: ne },
     },
