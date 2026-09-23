@@ -63,17 +63,19 @@ export class OnboardingService {
       if (tenant) {
         const doctorId = newId()
         await this.db.withTenant(tenant, async (db) => {
-          await db.execute(sql`
+          const res = await db.execute<{ id: string }>(sql`
             INSERT INTO users (id, full_name, phone, email, specialty, status)
             VALUES (${doctorId}, ${input.doctor.name}, ${input.doctor.phone}, ${input.doctor.email || null}, ${input.doctor.specialty || null}, 'active')
             ON CONFLICT (phone) DO UPDATE SET
               full_name = EXCLUDED.full_name,
               email = EXCLUDED.email,
               specialty = EXCLUDED.specialty
+            RETURNING id
           `)
+          const actualDoctorId = res.rows[0]?.id ?? doctorId
           await db.execute(sql`
             INSERT INTO user_branch_roles (user_id, branch_id, role_id)
-            SELECT ${doctorId}, b.id, r.id
+            SELECT ${actualDoctorId}, b.id, r.id
             FROM branches b, roles r
             WHERE r.key = 'doctor'
             ON CONFLICT DO NOTHING
@@ -88,14 +90,16 @@ export class OnboardingService {
       if (tenant) {
         const receptionistId = newId()
         await this.db.withTenant(tenant, async (db) => {
-          await db.execute(sql`
+          const res = await db.execute<{ id: string }>(sql`
             INSERT INTO users (id, full_name, phone, status)
             VALUES (${receptionistId}, ${input.receptionist.name}, ${input.receptionist.phone}, 'active')
             ON CONFLICT (phone) DO UPDATE SET full_name = EXCLUDED.full_name
+            RETURNING id
           `)
+          const actualReceptionistId = res.rows[0]?.id ?? receptionistId
           await db.execute(sql`
             INSERT INTO user_branch_roles (user_id, branch_id, role_id)
-            SELECT ${receptionistId}, b.id, r.id
+            SELECT ${actualReceptionistId}, b.id, r.id
             FROM branches b, roles r
             WHERE r.key = 'receptionist'
             ON CONFLICT DO NOTHING
