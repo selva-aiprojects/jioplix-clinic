@@ -64,9 +64,10 @@ RUN npm ci --omit=dev --ignore-scripts
 COPY --from=builder /app/packages/contracts/src   ./packages/contracts/src
 COPY --from=builder /app/packages/contracts/dist  ./packages/contracts/dist
 
-# db resolves from dist
+# db resolves from dist, and needs migrations at runtime
 COPY --from=builder /app/packages/db/dist         ./packages/db/dist
 COPY --from=builder /app/packages/db/src          ./packages/db/src
+COPY --from=builder /app/packages/db/migrations   ./packages/db/migrations
 
 # cybelinx packages resolve from src directly
 COPY --from=builder /app/packages/cybelinx-core/src     ./packages/cybelinx-core/src
