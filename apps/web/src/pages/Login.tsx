@@ -6,11 +6,14 @@ import {
   Loader2, Lock, Phone, ScanFace, ShieldCheck, Stethoscope, Users, Pill,
   CheckCircle2, KeyRound, ArrowLeft, Timer, MessageSquare, Microscope, Sparkles,
 } from 'lucide-react'
-import { ApiError } from '../lib/api'
+import { ApiError, setSession } from '../lib/api'
 import { useAuth } from '../auth/useAuth'
 import BrandLogo from '../components/BrandLogo'
 
-const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api/v1'
+const API_BASE = import.meta.env.VITE_API_URL
+  ?? (import.meta.env.PROD
+    ? 'https://jioplix-api.fly.dev/api/v1'
+    : 'http://localhost:3000/api/v1')
 
 const specialties = [
   { icon: ScanFace, label: 'Dental' },
@@ -57,11 +60,11 @@ function friendlyError(err: unknown): string {
 }
 
 export default function Login() {
-  const { login } = useAuth()
+  const { login, refreshSession } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
 
-  const [clinic, setClinic] = useState('')
+  const [clinic, setClinic] = useState(() => (location.state as { clinic?: string } | null)?.clinic ?? '')
   const [phone, setPhone] = useState('')
   const [password, setPassword] = useState('')
   const [otp, setOtp] = useState('')
@@ -152,17 +155,16 @@ export default function Login() {
       const data = await res.json()
       if (!res.ok) throw new ApiError(data?.error?.code ?? 'UNKNOWN', res.status)
 
-      // Store session (same as password login)
+      // Store session and navigate
       const session = data.data
       if (session?.accessToken) {
-        localStorage.setItem('jioplix.session.v1', JSON.stringify({
+        setSession({
           accessToken: session.accessToken,
           refreshToken: session.refreshToken,
           user: session.user,
-          expiresAt: Date.now() + 15 * 60 * 1000,
-          version: 1,
-        }))
-        window.location.hash = from
+        })
+        await refreshSession()
+        navigate(from, { replace: true })
       }
     } catch (err) {
       setError(friendlyError(err))
