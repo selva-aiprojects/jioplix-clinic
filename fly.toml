@@ -2,7 +2,7 @@
 # Deploy with: fly deploy
 
 app = "jioplix-api"
-primary_region = "bom"   # Mumbai — closest to Indian users
+primary_region = "sin"   # Singapore — closest active region to Indian users
 
 [build]
   dockerfile = "Dockerfile"
@@ -27,13 +27,13 @@ primary_region = "bom"   # Mumbai — closest to Indian users
     soft_limit = 80
 
 [[vm]]
-  size   = "shared-cpu-1x"   # Free tier: 256MB RAM, shared CPU
-  memory = "256mb"
+  size   = "shared-cpu-1x"
+  memory = "512mb"
 
 [checks]
   # Fly health-check hits /api/v1/health every 30s
   [checks.health]
-    grace_period = "10s"
+    grace_period = "15s"
     interval     = "30s"
     method       = "GET"
     path         = "/api/v1/health"
