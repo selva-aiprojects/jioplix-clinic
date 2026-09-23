@@ -1,0 +1,17 @@
+.git
+.gitignore
+.env*
+*.local
+node_modules
+**/node_modules
+dist
+dist-ssr
+.pgdata
+docker-compose.yml
+docs
+scripts
+apps/web
+*.md
+*.log
+.vercelignore
+vercel.json

@@ -1,0 +1,42 @@
+# fly.toml — Jioplix API on Fly.io
+# Deploy with: fly deploy
+
+app = "jioplix-api"
+primary_region = "bom"   # Mumbai — closest to Indian users
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  PORT     = "3000"
+  NODE_ENV = "production"
+  # All secrets (DATABASE_URL, JWT_SECRET, etc.) are set via:
+  #   fly secrets set KEY=value
+  # Never put real secrets in this file.
+
+[http_service]
+  internal_port       = 3000
+  force_https         = true
+  auto_stop_machines  = "stop"   # Stop (not destroy) when idle — starts back on request
+  auto_start_machines = true
+  min_machines_running = 0       # Scale to 0 when idle to stay within free tier
+
+  [http_service.concurrency]
+    type       = "connections"
+    hard_limit = 100
+    soft_limit = 80
+
+[[vm]]
+  size   = "shared-cpu-1x"   # Free tier: 256MB RAM, shared CPU
+  memory = "256mb"
+
+[checks]
+  # Fly health-check hits /api/v1/health every 30s
+  [checks.health]
+    grace_period = "10s"
+    interval     = "30s"
+    method       = "GET"
+    path         = "/api/v1/health"
+    port         = 3000
+    timeout      = "5s"
+    type         = "http"
