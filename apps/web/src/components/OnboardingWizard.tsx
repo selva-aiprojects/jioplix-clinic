@@ -414,17 +414,19 @@ function StepComplete({ onGoDashboard }: { onGoDashboard: () => void }) {
 
 export default function OnboardingWizard() {
   const navigate = useNavigate()
-  const { refreshSession } = useAuth()
+  const { user, refreshSession } = useAuth()
   const [step, setStep] = useState(0)
   const [submitting, setSubmitting] = useState(false)
 
-  const [clinicProfile, setClinicProfile] = useState<ClinicProfileData>({
-    clinicName: '',
-    clinicType: '',
+  const [clinicProfile, setClinicProfile] = useState<ClinicProfileData>(() => ({
+    clinicName: user?.clinic.name ?? '',
+    clinicType: user?.clinic.clinicType
+      ? user.clinic.clinicType.charAt(0).toUpperCase() + user.clinic.clinicType.slice(1)
+      : 'General',
     address: '',
-    phone: '',
+    phone: user?.phone ?? '',
     email: '',
-  })
+  }))
   const [doctor, setDoctor] = useState<DoctorData>({
     name: '',
     specialty: '',
@@ -446,22 +448,18 @@ export default function OnboardingWizard() {
       const errs: Record<string, string> = {}
       if (!clinicProfile.clinicName.trim()) errs.clinicName = 'Clinic name is required'
       if (!clinicProfile.clinicType) errs.clinicType = 'Clinic type is required'
-      if (!clinicProfile.phone.trim()) errs.phone = 'Phone is required'
-      if (!clinicProfile.email.trim()) errs.email = 'Email is required'
       setClinicErrors(errs)
       return Object.keys(errs).length === 0
     }
     if (s === 2) {
       const errs: Record<string, string> = {}
-      if (!doctor.name.trim()) errs.name = 'Doctor name is required'
-      if (!doctor.phone.trim()) errs.phone = 'Phone is required'
+      if (doctor.name.trim() && !doctor.phone.trim()) errs.phone = 'Phone is required if doctor name is specified'
       setDoctorErrors(errs)
       return Object.keys(errs).length === 0
     }
     if (s === 3) {
       const errs: Record<string, string> = {}
-      if (!receptionist.name.trim()) errs.name = 'Receptionist name is required'
-      if (!receptionist.phone.trim()) errs.phone = 'Phone is required'
+      if (receptionist.name.trim() && !receptionist.phone.trim()) errs.phone = 'Phone is required if receptionist name is specified'
       setReceptionistErrors(errs)
       return Object.keys(errs).length === 0
     }
@@ -501,6 +499,11 @@ export default function OnboardingWizard() {
     )
   }
 
+  function handleSkip() {
+    localStorage.setItem('jioplix.onboarding.completed', 'true')
+    navigate('/dashboard', { replace: true })
+  }
+
   function handleGoDashboard() {
     // Refresh the session so the dashboard shows the newly created clinic name,
     // not the stale identity from the original login token.
@@ -512,6 +515,16 @@ export default function OnboardingWizard() {
   return (
     <div className="fixed inset-0 z-[100] bg-surface-50 flex items-center justify-center p-4 overflow-y-auto">
       <div className="w-full max-w-2xl bg-white rounded-3xl border border-surface-200 shadow-healthcare-lg p-8 sm:p-10 my-8">
+        <div className="flex items-center justify-between mb-4">
+          <span className="text-[11px] font-bold uppercase tracking-wider text-surface-400">First-Time Setup</span>
+          <button
+            type="button"
+            onClick={handleSkip}
+            className="text-[12px] font-semibold text-primary-600 hover:text-primary-700 transition-colors cursor-pointer"
+          >
+            Skip to Dashboard →
+          </button>
+        </div>
         <ProgressIndicator current={step} total={TOTAL_STEPS} />
 
         {step === 0 && <StepWelcome />}
