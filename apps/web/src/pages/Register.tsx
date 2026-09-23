@@ -3,8 +3,8 @@ import type { FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import {
   AlertCircle, ArrowLeft, Building2, Check, CheckCircle2, ChevronRight,
-  ClipboardPlus, Loader2, Lock, Mail, Phone, Pill, ShieldCheck,
-  Stethoscope, User,
+  ClipboardPlus, CreditCard, Loader2, Lock, Mail, MapPin, Phone, Pill,
+  ShieldCheck, Stethoscope, User,
 } from 'lucide-react'
 import { registerClinic, listPlans, type PlanOption } from '../lib/api'
 import { RAZORPAY_PAYMENT_LINK } from '../lib/api'
@@ -40,6 +40,7 @@ export default function Register() {
   const [slug, setSlug] = useState('')
   const [slugManuallyEdited, setSlugManuallyEdited] = useState(false)
   const [clinicType, setClinicType] = useState<ClinicType>('general')
+  const [clinicAddress, setClinicAddress] = useState('')
 
   // Admin fields
   const [adminName, setAdminName] = useState('')
@@ -47,9 +48,10 @@ export default function Register() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
 
-  // Plan
+  // Plan & Payment
   const [plans, setPlans] = useState<PlanOption[]>([])
   const [selectedPlan, setSelectedPlan] = useState('professional')
+  const [paymentChoice, setPaymentChoice] = useState<'trial' | 'pay_now'>('trial')
 
   // Success
   const [result, setResult] = useState<{ slug: string; email: string; password: string } | null>(null)
@@ -109,8 +111,12 @@ export default function Register() {
         email: email.trim(),
         password,
       })
+      localStorage.setItem('jioplix.onboarding.completed', 'true')
       setResult({ slug: res.slug, email: email.trim(), password })
       setStep('success')
+      if (paymentChoice === 'pay_now') {
+        window.open(RAZORPAY_PAYMENT_LINK, '_blank', 'noopener,noreferrer')
+      }
     } catch (err: any) {
       const code = err?.code ?? err?.message ?? 'UNKNOWN'
       if (code === 'SLUG_TAKEN') setError('This Clinic ID is already taken. Please choose another.')
@@ -241,6 +247,20 @@ export default function Register() {
                       {ct.label}
                     </button>
                   ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[12px] font-semibold text-surface-700 mb-1.5">Clinic address / city (optional)</label>
+                <div className="relative">
+                  <MapPin className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-surface-400 pointer-events-none" />
+                  <input
+                    type="text"
+                    placeholder="e.g. Indiranagar, Bangalore"
+                    value={clinicAddress}
+                    onChange={(e) => setClinicAddress(e.target.value)}
+                    className="w-full pl-10 pr-3.5 py-2.5 text-[13px] font-medium bg-surface-50/50 border border-surface-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 focus:bg-white transition-all placeholder:text-surface-400"
+                  />
                 </div>
               </div>
 
@@ -375,6 +395,45 @@ export default function Register() {
                 ))}
               </div>
 
+              <div className="pt-2">
+                <label className="block text-[12px] font-semibold text-surface-700 mb-2">Activation & Payment</label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPaymentChoice('trial')}
+                    className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                      paymentChoice === 'trial'
+                        ? 'bg-primary-50 border-primary-300 ring-2 ring-primary-500/20'
+                        : 'bg-white border-surface-200 hover:border-surface-300'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-[13px] font-bold text-surface-900">14-Day Free Trial</span>
+                      {paymentChoice === 'trial' && <Check className="w-3.5 h-3.5 text-primary-600" />}
+                    </div>
+                    <p className="text-[11px] text-surface-500">Full access. No card required today.</p>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setPaymentChoice('pay_now')}
+                    className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                      paymentChoice === 'pay_now'
+                        ? 'bg-primary-50 border-primary-300 ring-2 ring-primary-500/20'
+                        : 'bg-white border-surface-200 hover:border-surface-300'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-[13px] font-bold text-surface-900 flex items-center gap-1.5">
+                        <CreditCard className="w-3.5 h-3.5 text-primary-600" /> Pay via Razorpay
+                      </span>
+                      {paymentChoice === 'pay_now' && <Check className="w-3.5 h-3.5 text-primary-600" />}
+                    </div>
+                    <p className="text-[11px] text-surface-500">Instant activation with Razorpay.</p>
+                  </button>
+                </div>
+              </div>
+
               {error && (
                 <div role="alert" className="flex items-start gap-2.5 p-3.5 rounded-xl bg-danger-50 border border-danger-200">
                   <AlertCircle className="w-4 h-4 text-danger-600 mt-0.5 shrink-0" />
@@ -385,7 +444,7 @@ export default function Register() {
               <button onClick={handleRegister} disabled={submitting}
                 className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-primary-600 hover:bg-primary-700 text-white text-[13px] font-semibold py-3 shadow-healthcare transition-all disabled:opacity-50 disabled:pointer-events-none cursor-pointer">
                 {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
-                {submitting ? 'Creating your clinic...' : 'Start free trial'}
+                {submitting ? 'Creating your clinic...' : paymentChoice === 'pay_now' ? 'Register & Pay with Razorpay' : 'Start 14-day free trial'}
               </button>
 
               <p className="text-center text-[11px] text-surface-400">
@@ -402,7 +461,7 @@ export default function Register() {
                   <CheckCircle2 className="w-8 h-8 text-success-600" />
                 </div>
                 <h2 className="text-2xl font-bold text-surface-900 tracking-tight">You're all set!</h2>
-                <p className="text-[13px] text-surface-500 mt-1">Your clinic has been created with a 14-day free trial.</p>
+                <p className="text-[13px] text-surface-500 mt-1">Your clinic has been provisioned and configured.</p>
               </div>
 
               <div className="bg-surface-50 rounded-xl border border-surface-200 p-5 space-y-3">
@@ -434,17 +493,23 @@ export default function Register() {
                 state={{ clinic: result.slug }}
                 className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-primary-600 hover:bg-primary-700 text-white text-[13px] font-semibold py-3 shadow-healthcare transition-all text-center"
               >
-                Go to login
+                Go to clinic login <ChevronRight className="w-4 h-4" />
               </Link>
 
-              <a
-                href={RAZORPAY_PAYMENT_LINK}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-surface-200 text-[12px] font-semibold text-surface-500 hover:border-primary-200 hover:bg-primary-50/40 py-2.5 transition-all"
-              >
-                Pay now via Razorpay (after trial)
-              </a>
+              <div className="pt-2 border-t border-surface-200 space-y-2">
+                <div className="flex items-center justify-between text-[12px] text-surface-600 font-medium">
+                  <span className="flex items-center gap-1.5"><CreditCard className="w-3.5 h-3.5 text-primary-600" /> Razorpay Online Payment</span>
+                  <span>UPI / Cards / NetBanking</span>
+                </div>
+                <a
+                  href={RAZORPAY_PAYMENT_LINK}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-primary-200 bg-primary-50/60 hover:bg-primary-100 text-primary-800 text-[12px] font-semibold py-2.5 transition-all text-center"
+                >
+                  Pay now via Razorpay
+                </a>
+              </div>
             </div>
           )}
 

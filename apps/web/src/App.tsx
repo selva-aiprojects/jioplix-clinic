@@ -55,11 +55,6 @@ function ProtectedRoute() {
     return <Navigate to="/login" replace state={{ from: location.pathname }} />
   }
 
-  const onboardingCompleted = localStorage.getItem('jioplix.onboarding.completed')
-  if (onboardingCompleted !== 'true') {
-    return <Onboarding />
-  }
-
   return <Layout />
 }
 

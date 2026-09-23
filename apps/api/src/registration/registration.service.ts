@@ -89,14 +89,33 @@ export class RegistrationService {
           password_hash = EXCLUDED.password_hash
       `)
 
-      // Assign tenant_admin role to the admin user
+      // Assign tenant_admin and doctor roles to the admin user
       await db.execute(sql`
         INSERT INTO user_branch_roles (user_id, branch_id, role_id)
         SELECT ${adminUserId}, b.id, r.id
         FROM branches b, roles r
-        WHERE r.key = 'tenant_admin'
+        WHERE r.key IN ('tenant_admin', 'doctor')
         ON CONFLICT DO NOTHING
       `)
+    })
+
+    // 4b. Pre-complete tenant onboarding so admin is never blocked by post-login setup wizard
+    await this.db.pool.query(
+      `INSERT INTO public.tenant_onboarding (tenant_id, completed, clinic_profile, updated_at)
+       VALUES ($1, true, $2, now())
+       ON CONFLICT (tenant_id) DO UPDATE SET completed = true, clinic_profile = $2, updated_at = now()`,
+      [
+        tenantId,
+        JSON.stringify({
+          clinicName: input.clinicName,
+          clinicType: input.clinicType,
+          phone: input.phone,
+          email: input.email,
+          adminName: input.adminName,
+        }),
+      ],
+    ).catch((err) => {
+      this.logger.warn(`Failed to seed tenant_onboarding: ${err.message}`)
     })
 
     // 5. Create initial subscription (14-day trial)

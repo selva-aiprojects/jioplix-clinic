@@ -53,6 +53,7 @@ import { PasswordResetModule } from './password-reset/password-reset.module.js'
 import { SupportTicketModule } from './support-ticket/support-ticket.module.js'
 import { UpgradeModule } from './upgrade/upgrade.module.js'
 import { SchedulerModule } from './scheduler/scheduler.module.js'
+import { AddonsController } from './tenancy/addons.controller.js'
 
 @Module({
   controllers: [
@@ -65,6 +66,7 @@ import { SchedulerModule } from './scheduler/scheduler.module.js'
     ProceduresController,
     PharmacyController,
     TeamController,
+    AddonsController,
   ],
   providers: [
     TenantGuard,

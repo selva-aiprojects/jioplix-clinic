@@ -971,7 +971,7 @@ export async function renewSubscription(planCode?: string): Promise<TenantSubscr
 
 export const RAZORPAY_PAYMENT_LINK = 'https://razorpay.me/@balakrishnanselvakumar'
 
-export async function createPaymentOrder(amountPaise: number, planCode: string): Promise<{ orderId: string; amount: number; currency: string }> {
+export async function createPaymentOrder(amountPaise: number, planCode: string): Promise<{ orderId: string; amount: number; currency: string; keyId?: string }> {
   return api('/payments/create-order', { method: 'POST', body: { amountPaise, planCode } })
 }
 
@@ -981,6 +981,86 @@ export async function verifyPayment(data: {
   razorpaySignature: string
 }): Promise<{ verified: boolean; paymentId: string }> {
   return api('/payments/verify', { method: 'POST', body: data })
+}
+
+export interface RazorpayCheckoutOptions {
+  orderId?: string
+  keyId?: string
+  amountPaise?: number
+  planCode?: string
+  clinicName?: string
+  adminName?: string
+  adminEmail?: string
+  adminPhone?: string
+  onSuccess?: (paymentId: string) => void
+  onFailure?: (err: any) => void
+}
+
+export function openRazorpayCheckout(opts: RazorpayCheckoutOptions): void {
+  const launch = () => {
+    if (typeof (window as any).Razorpay === 'function' && opts.orderId) {
+      const rzp = new (window as any).Razorpay({
+        key: opts.keyId || (window as any).__RAZORPAY_KEY__ || 'rzp_test_stub',
+        amount: opts.amountPaise ?? 0,
+        currency: 'INR',
+        name: opts.clinicName || 'Jioplix Clinic',
+        description: `Subscription: ${opts.planCode || 'Plan'}`,
+        order_id: opts.orderId,
+        prefill: {
+          name: opts.adminName || '',
+          email: opts.adminEmail || '',
+          contact: opts.adminPhone || '',
+        },
+        theme: { color: '#0284c7' },
+        handler: (response: any) => {
+          opts.onSuccess?.(response.razorpay_payment_id)
+        },
+      })
+      rzp.on('payment.failed', (resp: any) => {
+        opts.onFailure?.(resp.error)
+      })
+      rzp.open()
+    } else {
+      window.open(RAZORPAY_PAYMENT_LINK, '_blank', 'noopener,noreferrer')
+    }
+  }
+
+  if (typeof (window as any).Razorpay === 'function') {
+    launch()
+    return
+  }
+
+  const script = document.createElement('script')
+  script.src = 'https://checkout.razorpay.com/v1/checkout.js'
+  script.async = true
+  script.onload = launch
+  script.onerror = () => {
+    window.open(RAZORPAY_PAYMENT_LINK, '_blank', 'noopener,noreferrer')
+  }
+  document.body.appendChild(script)
+}
+
+/* ============================ Addons & Entitlements ============================ */
+
+export interface AddonEntitlement {
+  moduleCode: string
+  enabled: boolean
+  validUntil?: string | null
+  updatedAt?: string
+}
+
+export async function getAddonEntitlements(): Promise<AddonEntitlement[]> {
+  return api<AddonEntitlement[]>('/addons')
+}
+
+export async function updateAddonEntitlement(
+  moduleCode: string,
+  enabled: boolean,
+): Promise<{ moduleCode: string; enabled: boolean }> {
+  return api<{ moduleCode: string; enabled: boolean }>(`/addons/${encodeURIComponent(moduleCode)}`, {
+    method: 'PATCH',
+    body: { enabled },
+  })
 }
 
 /* ============================ Platform Admin ============================ */

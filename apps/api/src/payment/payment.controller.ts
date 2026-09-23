@@ -1,9 +1,10 @@
-import { Body, Controller, Post, HttpCode, HttpStatus } from '@nestjs/common'
+import { Body, Controller, Post, HttpCode, HttpStatus, UseGuards } from '@nestjs/common'
 import { PaymentService } from './payment.service.js'
 import { CurrentTenant } from '../tenancy/current-tenant.decorator.js'
-import type { TenantContext } from '../tenancy/tenant.guard.js'
+import { TenantGuard, type TenantContext } from '../tenancy/tenant.guard.js'
 
 @Controller('payments')
+@UseGuards(TenantGuard)
 export class PaymentController {
   constructor(private readonly payment: PaymentService) {}
 
@@ -18,7 +19,12 @@ export class PaymentController {
       amountPaise: body.amountPaise,
       planCode: body.planCode,
     })
-    return { data: order }
+    return {
+      data: {
+        ...order,
+        keyId: process.env.RAZORPAY_KEY_ID ?? '',
+      },
+    }
   }
 
   @Post('verify')

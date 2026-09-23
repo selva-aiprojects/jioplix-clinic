@@ -1,11 +1,12 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Post } from '@nestjs/common'
+import { Body, Controller, Get, HttpCode, HttpStatus, Post, UseGuards } from '@nestjs/common'
 import type { AuthContext } from '@jioplix/contracts'
 import { SubscriptionService } from './subscription.service.js'
 import { CurrentAuth } from '../auth/auth.decorators.js'
 import { CurrentTenant } from '../tenancy/current-tenant.decorator.js'
-import type { TenantContext } from '../tenancy/tenant.guard.js'
+import { TenantGuard, type TenantContext } from '../tenancy/tenant.guard.js'
 
 @Controller('subscriptions')
+@UseGuards(TenantGuard)
 export class SubscriptionController {
   constructor(private readonly subscription: SubscriptionService) {}
 
