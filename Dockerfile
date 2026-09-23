@@ -60,8 +60,9 @@ COPY apps/web/package.json                ./apps/web/
 # Install production deps only
 RUN npm ci --omit=dev --ignore-scripts
 
-# contracts resolves from src directly (no build step)
+# contracts resolves from src and dist
 COPY --from=builder /app/packages/contracts/src   ./packages/contracts/src
+COPY --from=builder /app/packages/contracts/dist  ./packages/contracts/dist
 
 # db resolves from dist
 COPY --from=builder /app/packages/db/dist         ./packages/db/dist
