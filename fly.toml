@@ -17,9 +17,9 @@ primary_region = "sin"   # Singapore — closest active region to Indian users
 [http_service]
   internal_port       = 3000
   force_https         = true
-  auto_stop_machines  = "stop"   # Stop (not destroy) when idle — starts back on request
+  auto_stop_machines  = "off"   # Keep running 24/7 for zero cold starts
   auto_start_machines = true
-  min_machines_running = 0       # Scale to 0 when idle to stay within free tier
+  min_machines_running = 1       # Keep 1 machine always hot
 
   [http_service.concurrency]
     type       = "connections"
