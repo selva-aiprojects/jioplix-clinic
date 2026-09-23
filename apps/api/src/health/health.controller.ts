@@ -12,6 +12,7 @@ export class HealthController {
     return { service: 'jioplix-api', status: 'ok', docs: '/api/v1' }
   }
 
+  @Get('health')
   @Get('healthz')
   liveness() {
     return { status: 'ok' }

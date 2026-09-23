@@ -2,7 +2,7 @@
 // Usage: npm run preflight  (override targets with API_BASE / WEB_BASE env vars)
 import { execSync } from 'node:child_process'
 
-const API_BASE = process.env.API_BASE || 'https://jioplix-clinic-svc.onrender.com/api/v1'
+const API_BASE = process.env.API_BASE || 'https://jioplix-api.fly.dev/api/v1'
 const WEB_BASE = process.env.WEB_BASE || 'https://jioplix-clinic.vercel.app'
 const DEMO_PW = 'demo1234'
 
