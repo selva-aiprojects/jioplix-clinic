@@ -48,8 +48,8 @@ async function bootstrap(): Promise<void> {
   app.enableCors({ origin: true, credentials: true })
 
   const port = Number(process.env.PORT ?? 3000)
-  await app.listen(port)
-  console.log(`Jioplix API listening on http://localhost:${port}/${API_PREFIX}`)
+  await app.listen(port, '0.0.0.0')
+  console.log(`Jioplix API listening on http://0.0.0.0:${port}/${API_PREFIX}`)
 }
 
 void bootstrap()
