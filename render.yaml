@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: jioplix-clinic-svc
+    runtime: node
+    plan: free
+    region: oregon
+    buildCommand: npm install && npm run build -w @jioplix/db && npm run build -w @jioplix/api
+    startCommand: node apps/api/dist/main.js
+    healthCheckPath: /healthz
+    envVars:
+      - key: NODE_VERSION
+        value: 22
+      - key: NODE_ENV
+        value: production
+      - key: JWT_SECRET
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: DEMO_OTP_ENABLED
+        value: "true"
+      - key: DEMO_OTP_ALLOWLIST
+        value: "+919800000101,+919800000102,+919800000201,+919800000202,+919800000203"
+      - key: DEMO_OTP_TTL_SECONDS
+        value: "300"

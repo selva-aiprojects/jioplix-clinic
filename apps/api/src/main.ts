@@ -47,6 +47,10 @@ async function bootstrap(): Promise<void> {
   app.useGlobalFilters(new ErrorFilter())
   app.enableCors({ origin: true, credentials: true })
 
+  // Support root-level health probes for platforms like Render (GET /healthz, /health, /readyz)
+  const expressApp = app.getHttpAdapter().getInstance()
+  expressApp.get(['/health', '/healthz', '/readyz'], (_req: any, res: any) => res.json({ status: 'ok' }))
+
   const port = Number(process.env.PORT ?? 3000)
   await app.listen(port, '0.0.0.0')
   console.log(`Jioplix API listening on http://0.0.0.0:${port}/${API_PREFIX}`)
