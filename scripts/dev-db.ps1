@@ -6,6 +6,18 @@ $cmd = $args[0]
 
 switch ($cmd) {
   'start' {
+    $pidFile = Join-Path $dataDir 'postmaster.pid'
+    if (Test-Path $pidFile) {
+      $lines = Get-Content $pidFile -ErrorAction SilentlyContinue
+      if ($lines -and $lines.Count -ge 1) {
+        $oldPid = [int]$lines[0]
+        $proc = Get-Process -Id $oldPid -ErrorAction SilentlyContinue
+        if (-not $proc) {
+          Write-Host "Removing stale postmaster.pid (PID $oldPid not running)..."
+          Remove-Item $pidFile -Force
+        }
+      }
+    }
     Start-Process -FilePath (Join-Path $pg 'postgres.exe') `
       -ArgumentList '-D', $dataDir, '-p', '5434' -WindowStyle Hidden
     Start-Sleep -Seconds 3
