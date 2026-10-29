@@ -33,7 +33,10 @@ export class ErrorFilter implements ExceptionFilter {
 
     this.logger.error('Unhandled exception', exception instanceof Error ? exception.stack : String(exception))
     res.status(500).json({
-      error: { code: 'INTERNAL_ERROR', message: 'An unexpected error occurred.' },
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: exception instanceof Error ? exception.message : 'An unexpected error occurred.',
+      },
       statusCode: 500,
     })
   }

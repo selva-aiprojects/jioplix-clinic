@@ -19,10 +19,15 @@ export class HealthController {
 
   @Get('readyz')
   async readiness() {
-    const dbOk = await this.db.ping().catch(() => false)
+    let dbError: string | null = null
+    const dbOk = await this.db.ping().catch((err: any) => {
+      dbError = err?.message || String(err)
+      return false
+    })
     return {
       status: dbOk ? 'ok' : 'degraded',
       checks: { database: dbOk ? 'up' : 'down' },
+      ...(dbError ? { error: dbError } : {}),
     }
   }
 }
