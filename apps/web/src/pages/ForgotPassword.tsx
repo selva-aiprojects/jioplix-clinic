@@ -23,12 +23,16 @@ export default function ForgotPassword() {
         body: JSON.stringify({ email: email.trim() }),
       })
       if (!res.ok) {
-        const data = await res.json()
+        const data = await res.json().catch(() => null)
         throw new Error(data?.error?.code ?? 'UNKNOWN')
       }
       setSent(true)
-    } catch {
-      setError('Something went wrong. Please try again.')
+    } catch (err) {
+      if (err instanceof Error && (err.name === 'TypeError' || err.message.toLowerCase().includes('fetch') || err.message.toLowerCase().includes('network'))) {
+        setError('Cannot reach the Jioplix server. Check that the API is running and try again.')
+      } else {
+        setError('Something went wrong. Please try again.')
+      }
     } finally {
       setLoading(false)
     }

@@ -542,6 +542,15 @@ export function describeApiError(e: unknown): string {
       default: return e.code.replaceAll('_', ' ').toLowerCase()
     }
   }
+  if (
+    e instanceof Error &&
+    (e.name === 'TypeError' ||
+      e.message.toLowerCase().includes('fetch') ||
+      e.message.toLowerCase().includes('network') ||
+      e.message.toLowerCase().includes('failed'))
+  ) {
+    return 'Cannot reach the server. Check your connection and try again.'
+  }
   return 'Something went wrong. Please try again.'
 }
 

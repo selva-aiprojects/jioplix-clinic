@@ -30,14 +30,18 @@ export default function ResetPassword() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token, email, newPassword: password }),
       })
-      const data = await res.json()
+      const data = await res.json().catch(() => null)
       if (!res.ok) throw new Error(data?.error?.code ?? 'UNKNOWN')
       setDone(true)
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'UNKNOWN'
-      if (msg === 'TOKEN_EXPIRED') setError('This reset link has expired. Please request a new one.')
-      else if (msg === 'INVALID_TOKEN') setError('Invalid reset link. Please request a new one.')
-      else setError('Something went wrong. Please try again.')
+      if (err instanceof Error && (err.name === 'TypeError' || err.message.toLowerCase().includes('fetch') || err.message.toLowerCase().includes('network'))) {
+        setError('Cannot reach the Jioplix server. Check that the API is running and try again.')
+      } else {
+        const msg = err instanceof Error ? err.message : 'UNKNOWN'
+        if (msg === 'TOKEN_EXPIRED') setError('This reset link has expired. Please request a new one.')
+        else if (msg === 'INVALID_TOKEN') setError('Invalid reset link. Please request a new one.')
+        else setError('Something went wrong. Please try again.')
+      }
     } finally {
       setLoading(false)
     }

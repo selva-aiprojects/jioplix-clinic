@@ -56,6 +56,15 @@ function friendlyError(err: unknown): string {
         return `Something went wrong (${err.code}). Please try again.`
     }
   }
+  if (
+    err instanceof Error &&
+    (err.name === 'TypeError' ||
+      err.message.toLowerCase().includes('fetch') ||
+      err.message.toLowerCase().includes('network') ||
+      err.message.toLowerCase().includes('failed'))
+  ) {
+    return 'Cannot reach the Jioplix server. Check that the API is running and try again.'
+  }
   return 'Something went wrong. Please try again.'
 }
 
@@ -119,16 +128,24 @@ export default function Login() {
     setError(null)
     setOtpSending(true)
     try {
-      const res = await fetch(`${API_BASE}/auth/send-otp`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ clinic: clinic.trim().toLowerCase(), phone: phone.trim() }),
-      })
-      const data = await res.json()
+      let res: Response
+      try {
+        res = await fetch(`${API_BASE}/auth/send-otp`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ clinic: clinic.trim().toLowerCase(), phone: phone.trim() }),
+        })
+      } catch {
+        throw new ApiError('NETWORK_ERROR', 0)
+      }
+      let data: any = null
+      try {
+        data = await res.json()
+      } catch {}
       if (!res.ok) throw new ApiError(data?.error?.code ?? 'UNKNOWN', res.status)
       setOtpSent(true)
-      setOtpExpiry(data.data?.expiresIn ?? 300)
-      setDemoCode(data.data?.demoCode ?? null)
+      setOtpExpiry(data?.data?.expiresIn ?? 300)
+      setDemoCode(data?.data?.demoCode ?? null)
     } catch (err) {
       setError(friendlyError(err))
     } finally {
@@ -143,20 +160,28 @@ export default function Login() {
     setError(null)
     setOtpVerifying(true)
     try {
-      const res = await fetch(`${API_BASE}/auth/verify-otp`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          clinic: clinic.trim().toLowerCase(),
-          phone: phone.trim(),
-          otp: otp.trim(),
-        }),
-      })
-      const data = await res.json()
+      let res: Response
+      try {
+        res = await fetch(`${API_BASE}/auth/verify-otp`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            clinic: clinic.trim().toLowerCase(),
+            phone: phone.trim(),
+            otp: otp.trim(),
+          }),
+        })
+      } catch {
+        throw new ApiError('NETWORK_ERROR', 0)
+      }
+      let data: any = null
+      try {
+        data = await res.json()
+      } catch {}
       if (!res.ok) throw new ApiError(data?.error?.code ?? 'UNKNOWN', res.status)
 
       // Store session and navigate
-      const session = data.data
+      const session = data?.data
       if (session?.accessToken) {
         setSession({
           accessToken: session.accessToken,
