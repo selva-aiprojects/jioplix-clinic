@@ -4,7 +4,7 @@ services:
     runtime: node
     plan: free
     region: oregon
-    buildCommand: npm install && npm run build -w @jioplix/db && npm run build -w @jioplix/api
+    buildCommand: npm install --include=dev && npm run build -w @jioplix/db && npm run build -w @jioplix/api
     startCommand: node apps/api/dist/main.js
     healthCheckPath: /healthz
     envVars:
