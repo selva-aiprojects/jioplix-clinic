@@ -6,14 +6,9 @@ import {
   Loader2, Lock, Phone, ScanFace, ShieldCheck, Stethoscope, Users, Pill,
   CheckCircle2, KeyRound, ArrowLeft, Timer, MessageSquare, Microscope, Sparkles,
 } from 'lucide-react'
-import { ApiError, setSession } from '../lib/api'
+import { ApiError, BASE_URL as API_BASE, setSession } from '../lib/api'
 import { useAuth } from '../auth/useAuth'
 import BrandLogo from '../components/BrandLogo'
-
-const API_BASE = import.meta.env.VITE_API_URL
-  ?? (import.meta.env.PROD
-    ? 'https://jioplix-api.fly.dev/api/v1'
-    : 'http://localhost:3000/api/v1')
 
 const specialties = [
   { icon: ScanFace, label: 'Dental' },

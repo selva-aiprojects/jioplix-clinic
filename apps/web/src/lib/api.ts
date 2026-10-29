@@ -1,6 +1,6 @@
 import type { SessionUser } from '../auth/types'
 
-const BASE_URL = import.meta.env.VITE_API_URL
+export const BASE_URL = import.meta.env.VITE_API_URL
   ?? (import.meta.env.PROD
     ? 'https://jioplix-clinic-svc.onrender.com/api/v1'
     : 'http://localhost:3000/api/v1')

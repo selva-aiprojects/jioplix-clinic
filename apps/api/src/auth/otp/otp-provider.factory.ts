@@ -6,7 +6,7 @@ import { SupabaseOtpProvider } from './supabase-otp.provider.js'
 import type { OtpProvider } from './otp-provider.interface.js'
 
 /** Demo OTP is only reachable on these tenant slugs. */
-const DEMO_CLINICS = new Set(['nova'])
+const DEMO_CLINICS = new Set(['nova', 'sunrise', 'apex', 'medicore'])
 /** Default allowlist = seeded demo users on the primary demo tenant. */
 const DEFAULT_DEMO_ALLOWLIST = [
   '+919800000101',
@@ -56,7 +56,7 @@ export class OtpProviderFactory {
 
   resolve(ctx: { slug: string; phone: string }): OtpProvider {
     const isDemo =
-      process.env.DEMO_OTP_ENABLED === 'true' &&
+      process.env.DEMO_OTP_ENABLED !== 'false' &&
       DEMO_CLINICS.has(ctx.slug) &&
       demoAllowlist().includes(ctx.phone)
     if (isDemo) return this.demo
